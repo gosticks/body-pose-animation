@@ -24,11 +24,11 @@ pip install -r requirements.txt
 
 ### Exporting imported packages to pip
 
+Since pip is trash and does not save imported packages in a file within the project you have to force it to do so.
+
 ```bash
 pip freeze > requirements.txt
 ```
-
-Since pip is trash and does not save imported packages in a file within the project you have to force it to do so.
 
 ## Links
 
