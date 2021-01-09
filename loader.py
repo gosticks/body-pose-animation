@@ -8,6 +8,7 @@ import smplx
 import pyrender
 import trimesh
 import torch
+import chumpy
 
 # TODO: clean this up after prototyping phase, currently this file will just house everything
 class DataLoader():
@@ -15,10 +16,10 @@ class DataLoader():
         self, 
         data_path,
         model_folder,
-        model_type='smplx',
+        model_type='smpl',
         ext='npz',
-        gender='neutral',
-        plot_joints=False,
+        gender='female',
+        plot_joints=True,
         num_betas=10,
         sample_shape=True,
         sample_expression=True,
