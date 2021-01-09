@@ -1,5 +1,6 @@
-from loader import *
 import yaml
+
+from loader import *
 
 ascii_logo = """\
   /$$$$$$  /$$      /$$ /$$$$$$$  /$$   /$$     /$$
@@ -25,9 +26,9 @@ def main():
     print(ascii_logo)
     conf = load_config()
     print("config loaded")
-    l = DataLoader(conf['inputPath'])
-    l.show_cur_item()
-    l.load_keypoints()
+    l = DataLoader(conf['inputPath'], conf['modelPath'])
+    # l.show_cur_item()
+    l.create_model()
     
 if __name__ == '__main__':
     main()
