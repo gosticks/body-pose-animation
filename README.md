@@ -12,7 +12,7 @@ The SMPL models can be downloaded from [this link](http://smplify.is.tue.mpg.de/
 ./setup.sh
 ```
 
-This should place the and rename the SMPL models to the correct folders. Either way the resulting folder structure should look like this (ignore smplx if you don't intend to use it):
+This should copy and rename the SMPL model to the correct folders. Either way the resulting folder structure should look like this (ignore smplx if you don't intend to use it):
 
 ```bash
 └── models
