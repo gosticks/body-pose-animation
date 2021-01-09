@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+
+models/*
+!models/.gitkeep
