@@ -30,6 +30,9 @@ class SMPLyDataset(torch.utils.data.Dataset):
         # it is assumed that each "item" consists of 3 files
 
     def transform(self, data, origin_format="body_25", target_format="smpl"):
+        """ 
+            transform: transforms the order of an origin array to the target format
+        """
         # TODO: expand features as needed
         # based on mappings found here
         # https://github.com/ortegatron/playing_smplifyx/blob/master/smplifyx/utils.py
@@ -70,8 +73,8 @@ class SMPLyDataset(torch.utils.data.Dataset):
             if m == -1:
                 continue
             # TODO: cleanup transform
-            out[i][0] = (in_data[m][0] / 1920 * 2 - 1) * -1
-            out[i][1] = (in_data[m][1] / 1080 * 2 - 1) * -1
+            out[i][0] = (in_data[m][0] / 1920 * 2 - 1)
+            out[i][1] = 1 - (in_data[m][1] / 1080 * 2)
         return out
 
     def __len__(self):
