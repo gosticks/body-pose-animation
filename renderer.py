@@ -70,7 +70,7 @@ class SMPLyRenderer():
 
         pyrender.Viewer(scene,
                         use_raymond_lighting=True,
-                        show_world_axis=True
+                        # show_world_axis=True
                         )
 
     def display_model(
