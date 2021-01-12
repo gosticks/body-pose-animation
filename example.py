@@ -1,5 +1,6 @@
 import yaml
 import torch
+import math
 
 from model import *
 from renderer import *
@@ -44,7 +45,23 @@ def main():
 
     # torch.randn((1, 69), dtype=torch.float32) * 0.7
     body_pose = torch.zeros((1, 69))
-    body_pose = torch.from_numpy(keypoints.reshape((1, 69)))
+
+    # try moving left elbow
+    body_pose.reshape(23, 3)[17][0] = math.pi / 4
+    body_pose.reshape(23, 3)[17][1] = - math.pi / 2
+    body_pose.reshape(23, 3)[17][2] = math.pi / 4
+
+    # right knee
+    body_pose.reshape(23, 3)[3][0] = math.pi / 4
+    body_pose.reshape(23, 3)[3][1] = - math.pi / 2
+    body_pose.reshape(23, 3)[3][2] = math.pi / 4
+
+    # left knee
+    body_pose.reshape(23, 3)[3][0] = math.pi / 4
+    body_pose.reshape(23, 3)[3][1] = - math.pi / 2
+    body_pose.reshape(23, 3)[3][2] = math.pi / 4
+
+    # body_pose = torch.from_numpy(keypoints.reshape((1, 69)))
     print(body_pose)
     r.display_model(m, betas=betas, keypoints=keypoints, body_pose=body_pose)
 
