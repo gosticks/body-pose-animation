@@ -1,17 +1,36 @@
+astroid @ file:///tmp/build/80754af9/astroid_1592495913683/work
 autopep8==1.5.4
 certifi==2020.12.5
+chumpy==0.70
 cycler==0.10.0
 dataclasses==0.8
+decorator==4.4.2
+freetype-py==2.2.0
+imageio==2.9.0
+isort @ file:///tmp/build/80754af9/isort_1602603989581/work
 kiwisolver==1.3.1
+lazy-object-proxy @ file:///tmp/build/80754af9/lazy-object-proxy_1607707326711/work
 matplotlib==3.3.3
+mccabe==0.6.1
+networkx==2.5
 numpy==1.19.5
 Pillow==8.1.0
 pycodestyle==2.6.0
+pyglet==1.5.14
+pylint @ file:///tmp/build/80754af9/pylint_1598624022510/work
+PyOpenGL==3.1.0
 pyparsing==2.4.7
+pyrender==0.1.43
 python-dateutil==2.8.1
 PyYAML==5.3.1
-six==1.15.0
+scipy==1.5.4
+six @ file:///tmp/build/80754af9/six_1605205335545/work
 smplx==0.1.26
-torch==1.7.1
+toml @ file:///tmp/build/80754af9/toml_1592853716807/work
+torch==1.7.1+cu110
 torchgeometry==0.1.2
+torchvision==0.8.2+cu110
+trimesh==3.9.1
+typed-ast==1.4.1
 typing-extensions==3.7.4.3
+wrapt==1.11.2
