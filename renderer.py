@@ -15,17 +15,11 @@ class SMPLyRenderer():
     # TODO: use __call__ for this
     def render_model(
         self,
-        model: smplx.SMPL,
+        model,
         betas: torch.TensorType,
         body_pose: torch.TensorType,
     ):
-        # compute model
-        model_out = model(
-            betas=betas,
-            body_pose=body_pose,
-            return_verts=True,
-        )
-
+        model_out = model()
         # TODO: check if this also works with CUDA
         vertices = model_out.vertices.detach().cpu().numpy().squeeze()
         joints = model_out.joints.detach().cpu().numpy().squeeze()
@@ -39,6 +33,38 @@ class SMPLyRenderer():
 
         return (tri_mesh, joints, vertices)
 
+    def set_keypoints(self, keypoints):
+        scene = self.scene
+        self.viewer.render_lock.acquire()
+
+        if self.keypoints_node is not None:
+            scene.remove(self.keypoints_node)
+
+        sm = trimesh.creation.uv_sphere(radius=0.01)
+        sm.visual.vertex_colors = [0.0, 0.0, 1.0, 1.0]
+        tfs = np.tile(np.eye(4), (len(keypoints), 1, 1))
+        tfs[:, :3, 3] = keypoints
+        keypoints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
+        self.keypoints_node = scene.add(keypoints_pcl, name="keypoints")
+
+        self.viewer.render_lock.release()
+
+    def set_model(self, model):
+        scene = self.scene
+        self.viewer.render_lock.acquire()
+
+        if self.keypoints_node is not None:
+            scene.remove(self.keypoints_node)
+
+        sm = trimesh.creation.uv_sphere(radius=0.01)
+        sm.visual.vertex_colors = [0.0, 0.0, 1.0, 1.0]
+        tfs = np.tile(np.eye(4), (len(keypoints), 1, 1))
+        tfs[:, :3, 3] = keypoints
+        keypoints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
+        self.keypoints_node = scene.add(keypoints_pcl, name="keypoints")
+
+        self.viewer.render_lock.release()
+
     def display_mesh(
         self,
         tri_mesh: trimesh.Trimesh,
@@ -46,40 +72,56 @@ class SMPLyRenderer():
         keypoints=None,
         render_openpose_wireframe=True,
     ):
-
         mesh = pyrender.Mesh.from_trimesh(tri_mesh)
 
         scene = pyrender.Scene()
-        scene.add(mesh)
-
+        self.body_node = scene.add(mesh, name="body_mesh")
         if joints is not None:
             sm = trimesh.creation.uv_sphere(radius=0.005)
             sm.visual.vertex_colors = [0.9, 0.1, 0.1, 1.0]
             tfs = np.tile(np.eye(4), (len(joints), 1, 1))
             tfs[:, :3, 3] = joints
             joints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-            scene.add(joints_pcl)
+            self.joints_node = scene.add(joints_pcl, name="joints")
 
         if keypoints is not None:
-            sm = trimesh.creation.uv_sphere(radius=0.01)
-            sm.visual.vertex_colors = [0.0, 0.0, 1.0, 1.0]
-            tfs = np.tile(np.eye(4), (len(keypoints), 1, 1))
-            tfs[:, :3, 3] = keypoints
-            keypoints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-            scene.add(keypoints_pcl)
 
-        pyrender.Viewer(scene,
-                        use_raymond_lighting=True,
-                        # show_world_axis=True
-                        )
+        self.start_render(scene)
+
+    def start_render(
+        self,
+        scene,
+    ):
+        self.scene = scene
+        self.viewer = pyrender.Viewer(scene,
+                                      use_raymond_lighting=True,
+                                      # show_world_axis=True
+                                      run_in_thread=True
+                                      )
+        # self.update()
+        while True:
+            pass
+
+    def update(self):
+        pose = self.body_node.get_pose()
+        print(pose)
+        self.viewer.render_lock.acquire()
+        self.scene.set_pose(self.body_node, pose)
+        self.viewer.render_lock.release()
+
+    def end_scene(self):
+        self.viewer.close_external()
+        while self.viewer.is_active:
+            pass
 
     def display_model(
         self,
-        model: smplx.SMPL,
+        model,
         betas: torch.TensorType,
         body_pose: torch.TensorType,
         keypoints=None,
     ):
-        (tri_mesh, joints, vertices) = self.render_model(model, betas, body_pose)
+        (tri_mesh, joints, vertices) = self.render_model(
+            model, betas, body_pose)
 
         self.display_mesh(tri_mesh, joints, keypoints)
