@@ -39,8 +39,8 @@ def main():
     r = SMPLyRenderer()
     m = l.create_model()
 
-    keypoints = dataset[0]
-    print(keypoints)
+    keypoints, conf = dataset[0]
+    print(keypoints, conf)
     betas = torch.randn([1, 10], dtype=torch.float32)
 
     # body_pose = torch.randn((1, 69), dtype=torch.float32) * 0.7
