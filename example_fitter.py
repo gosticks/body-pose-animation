@@ -47,20 +47,20 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 # FIND OPENPOSE TO SMPL MAPPINGS
-mapping = [24, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5, 8, 1, 4,
-           7, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+# mapping = [24, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5, 8, 1, 4,
+#            7, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
 
-arr = np.ones(45) * -1
+# arr = np.ones(45) * -1
 
-for i, v in enumerate(mapping):
-    arr[v] = i
-    print(v, i)
+# for i, v in enumerate(mapping):
+#     arr[v] = i
+#     print(v, i)
 
-for v in arr:
-    print(
-        int(v), ","
-    )
-print(arr)
+# for v in arr:
+#     print(
+#         int(v), ","
+#     )
+# print(arr)
 
 # ------------------------------
 # Load data
@@ -80,12 +80,12 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 # ---------------------------------
 
 # SMPL joint positions (cl = chest left, cr = chest right)
-cl_joint = get_named_joint(joints, "elbow-left")
-cr_joint = get_named_joint(joints, "hip-left")
+cl_joint = get_named_joint(joints, "shoulder-left")
+cr_joint = get_named_joint(joints, "shoulder-right")
 
 # keypoint joint position
-cl_point = get_named_joint(keypoints, "shoulder-left", type="body_25")
-cr_point = get_named_joint(keypoints, "shoulder-right", type="body_25")
+cl_point = get_named_joint(keypoints, "shoulder-left")
+cr_point = get_named_joint(keypoints, "shoulder-right")
 
 # create joints copy without points of interest
 other_joints = np.array([joints[x]
@@ -96,8 +96,20 @@ scene = pyrender.Scene()
 
 renderPoints(scene, other_joints)
 
+# render shoulder joints
 renderPoints(scene, [cl_joint, cr_joint],
              radius=0.01, colors=[1.0, 0.0, 1.0, 1.0])
+
+other_keypoints = np.array([keypoints[x]
+                            for x in range(len(keypoints)) if x < 13 or x > 14])
+
+# render openpose points
+renderPoints(scene, other_keypoints,
+             radius=0.005, colors=[0.0, 0.3, 0.0, 1.0])
+
+renderPoints(scene, [cl_point, cr_point],
+             radius=0.01, colors=[0.0, 0.7, 0.0, 1.0])
+
 
 v = pyrender.Viewer(scene,
                     use_raymond_lighting=True,
