@@ -124,8 +124,8 @@ def openpose_to_opengl_coords(
 
     points = np.array([
         [
-            x / real_width,
-            y / real_height,
+            x / real_width * -1,
+            y / real_height * -1,
             0
         ] for (x, y, z) in input_data])
 
