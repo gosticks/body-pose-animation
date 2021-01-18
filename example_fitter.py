@@ -167,24 +167,34 @@ render_points(scene, [cl_point, cr_point],
 cam_width = 1920
 cam_height = 1080
 # focal_length for x and y
-cam_focal_x = 1920
-cam_focal_y = 1920
+cam_focal_x = 1000
+cam_focal_y = 1000
+
+f = 4.25
+cam_focal_x = f * cam_width / 5.76
+cam_focal_y = f * cam_height / 4.29
+cx = cam_width/2.
+cy = cam_height/2.
 
 
 cam_pose = np.eye(4)
+cam_pose[:3, 3] = [1, 1, 0]
 cam_pose[0, 0] *= -1.0
+# cam_pose[2, 2] *= -1.0
 
 # add camera
 camera = pyrender.camera.IntrinsicsCamera(
     fx=cam_focal_x,
     fy=cam_focal_y,
-    cx=100,
-    cy=100
+    cx=cx,
+    cy=cy
 )
 
 scene.add(camera, pose=cam_pose)
 
 v = pyrender.Viewer(scene,
+                    viewport_size=(1920, 1080),
+
                     use_raymond_lighting=True,
                     # show_world_axis=True
                     run_in_thread=True
@@ -218,12 +228,20 @@ translation = nn.Parameter(translation, requires_grad=True)
 
 optimizer = torch.optim.Adam([translation, orientation], learning_rate)
 
+center = torch.from_numpy(np.array([[cam_width / 2, cam_height / 2]]))
+
 
 for t in range(2000):
 
     def optimizer_closure():
         # reset gradient for all parameters
         optimizer.zero_grad()
+
+        with torch.no_grad():
+            camera_mat = torch.zeros([2, 2, 2],
+                                     dtype=dtype, device=device)
+            camera_mat[:, 0, 0] = cam_focal_x
+            camera_mat[:, 1, 1] = cam_focal_x
 
         transform = torch.cat([F.pad(orientation, (0, 0, 0, 1), "constant", value=0),
                                F.pad(translation.unsqueeze(dim=-1), (0, 0, 0, 1), "constant", value=1)], dim=2)
@@ -238,8 +256,15 @@ for t in range(2000):
 
         homog_torso = torch.cat([smpl_torso, homog_coord], dim=-1)
 
-        # compute 2D projected points
-        pred = torch.einsum('bki,bji->bjk', [transform, homog_torso])
+        proj = torch.einsum('bki,bji->bjk', [transform, homog_torso])
+        print("proj:", proj)
+        img_points = torch.div(proj[:, :, :2],
+                               proj[:, :, 2].unsqueeze(dim=-1))
+
+        img_points = torch.einsum('bki,bji->bjk', [camera_mat, img_points]) \
+            + center.unsqueeze(dim=1)
+
+        print("img_points:", img_points)
 
         # transform coordinates to image space coordinates
 
