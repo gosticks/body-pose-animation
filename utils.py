@@ -1,5 +1,7 @@
 from typing import List, Set, Dict, Tuple, Optional
 import numpy as np
+import trimesh
+import pyrender
 
 openpose_to_smpl = np.array([
     8,  # hip - middle
@@ -138,3 +140,39 @@ def openpose_to_opengl_coords(
     ])
 
     return (points, conf)
+
+
+def render_model(
+    scene,
+    model,
+    model_out,
+    color=[0.3, 0.3, 0.3, 0.8],
+    name=None,
+    replace=False,
+):
+    vertices = model_out.vertices.detach().cpu().numpy().squeeze()
+
+    # set vertex colors, maybe use this to highlight accuracies
+    vertex_colors = np.ones([vertices.shape[0], 4]) * color
+
+    # triangulate vertex mesh
+    tri_mesh = trimesh.Trimesh(vertices, model.faces,
+                               vertex_colors=vertex_colors)
+
+    mesh = pyrender.Mesh.from_trimesh(tri_mesh)
+
+    if name is not None and replace:
+        for node in scene.get_nodes(name=name):
+            scene.remove_node(node)
+
+    return scene.add(mesh, name=name)
+
+
+def render_points(scene, points, radius=0.005, colors=[0.0, 0.0, 1.0, 1.0], name=None):
+    sm = trimesh.creation.uv_sphere(radius=radius)
+    sm.visual.vertex_colors = colors
+    tfs = np.tile(np.eye(4), (len(points), 1, 1))
+    tfs[:, :3, 3] = points
+    pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
+    # return the render scene node
+    return scene.add(pcl, name=name)

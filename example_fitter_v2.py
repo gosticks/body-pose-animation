@@ -46,7 +46,7 @@ def render_model(
     vertex_colors = np.ones([vertices.shape[0], 4]) * color
 
     # triangulate vertex mesh
-    tri_mesh = trimesh.Trimesh(vertices, model.faces,
+    tri_mesh = trimesh.Trimesh(vertices, model_out.faces,
                                vertex_colors=vertex_colors)
 
     mesh = pyrender.Mesh.from_trimesh(tri_mesh)
