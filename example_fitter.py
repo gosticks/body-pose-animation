@@ -3,6 +3,7 @@
 import yaml
 import torch
 import math
+import time
 from math import cos, sin
 
 from model import *
@@ -10,6 +11,9 @@ from model import *
 from dataset import *
 from utils import get_named_joint
 from collections import defaultdict
+import torch.nn.functional as F
+import torch.nn as nn
+
 
 ascii_logo = """\
   /$$$$$$  /$$      /$$ /$$$$$$$  /$$   /$$     /$$
@@ -28,7 +32,33 @@ dtype = torch.float
 device = torch.device("cpu")
 
 
-def renderPoints(scene, points, radius=0.005, colors=[0.0, 0.0, 1.0, 1.0], name=None):
+def render_model(
+    scene,
+    model,
+    color=[0.3, 0.3, 0.3, 0.8],
+    name=None,
+    replace=False,
+):
+    model_out = model()
+    vertices = model_out.vertices.detach().cpu().numpy().squeeze()
+
+    # set vertex colors, maybe use this to highlight accuracies
+    vertex_colors = np.ones([vertices.shape[0], 4]) * color
+
+    # triangulate vertex mesh
+    tri_mesh = trimesh.Trimesh(vertices, model.faces,
+                               vertex_colors=vertex_colors)
+
+    mesh = pyrender.Mesh.from_trimesh(tri_mesh)
+
+    if name is not None and replace:
+        for node in scene.get_nodes(name=name):
+            scene.remove_node(node)
+
+    return scene.add(mesh, name=name)
+
+
+def render_points(scene, points, radius=0.005, colors=[0.0, 0.0, 1.0, 1.0], name=None):
     sm = trimesh.creation.uv_sphere(radius=radius)
     sm.visual.vertex_colors = colors
     tfs = np.tile(np.eye(4), (len(points), 1, 1))
@@ -93,6 +123,7 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 # Draw in the joints of interest
 # ---------------------------------
 
+
 # SMPL joint positions (cl = chest left, cr = chest right)
 cl_joint = get_named_joint(joints, "shoulder-left")
 cr_joint = get_named_joint(joints, "shoulder-right")
@@ -108,22 +139,50 @@ print("removed other joints from list:", len(
     other_joints), other_joints.shape, len(joints))
 scene = pyrender.Scene()
 
-renderPoints(scene, other_joints)
+render_points(scene, other_joints)
 
 # render shoulder joints
-scene_joint = renderPoints(scene, [cl_joint, cr_joint],
-                           radius=0.01, colors=[1.0, 0.0, 1.0, 1.0])
+scene_joint_left = render_points(scene, [cl_joint],
+                                 radius=0.01, colors=[1.0, 0.0, 1.0, 1.0])
+
+scene_joint_right = render_points(scene, [cr_joint],
+                                  radius=0.01, colors=[1.0, 1.0, 0.0, 1.0])
 
 other_keypoints = np.array([keypoints[x]
                             for x in range(len(keypoints)) if x < 13 or x > 14])
 
+scene_model = render_model(scene, model)
+
 # render openpose points
-renderPoints(scene, other_keypoints,
-             radius=0.005, colors=[0.0, 0.3, 0.0, 1.0])
+render_points(scene, other_keypoints,
+              radius=0.005, colors=[0.0, 0.3, 0.0, 1.0])
 
-renderPoints(scene, [cl_point, cr_point],
-             radius=0.01, colors=[0.0, 0.7, 0.0, 1.0])
+render_points(scene, [cl_point, cr_point],
+              radius=0.01, colors=[0.0, 0.7, 0.0, 1.0])
 
+
+# --------------------------------------
+# Create camera matrix
+# --------------------------------------
+cam_width = 1920
+cam_height = 1080
+# focal_length for x and y
+cam_focal_x = 1920
+cam_focal_y = 1920
+
+
+cam_pose = np.eye(4)
+cam_pose[0, 0] *= -1.0
+
+# add camera
+camera = pyrender.camera.IntrinsicsCamera(
+    fx=cam_focal_x,
+    fy=cam_focal_y,
+    cx=100,
+    cy=100
+)
+
+scene.add(camera, pose=cam_pose)
 
 v = pyrender.Viewer(scene,
                     use_raymond_lighting=True,
@@ -134,110 +193,105 @@ v = pyrender.Viewer(scene,
 # -------------------------------------
 # Optimize for translation and rotation
 # -------------------------------------
+learning_rate = 1e-3
+
 
 smpl_torso = torch.Tensor([cl_joint, cr_joint], device=device)
 keyp_torso = torch.Tensor([cl_point, cr_point], device=device)
+# homog_coord_keyp = torch.ones(list(keyp_torso.shape)[:-1] + [1],
+#                               dtype=dtype,
+#                               device=device)
+# homog_keyp = torch.cat([keyp_torso, homog_coord_keyp], dim=-1)
 
-orientation = torch.randn((3), device=device, dtype=dtype, requires_grad=True)
-translation = torch.randn((3), device=device, dtype=dtype, requires_grad=True)
+orientation = torch.eye(
+    3,
+    device=device,
+    dtype=dtype
+).unsqueeze(dim=0).repeat(2, 1, 1)
+orientation = nn.Parameter(orientation, requires_grad=True)
 
-roll = torch.zeros(1,  device=device, dtype=dtype,  requires_grad=True)
-yaw = torch.zeros(1,  device=device, dtype=dtype,  requires_grad=True)
-pitch = torch.zeros(1,  device=device, dtype=dtype,  requires_grad=True)
+translation = torch.zeros(
+    [2, 3],
+    device=device,
+    dtype=dtype)
+translation = nn.Parameter(translation, requires_grad=True)
 
-tensor_0 = torch.zeros(1,  device=device, dtype=dtype)
-tensor_1 = torch.ones(1,  device=device, dtype=dtype)
+optimizer = torch.optim.Adam([translation, orientation], learning_rate)
 
-learning_rate = 0.1  # 1e-3
-for t in range(200000):
-    RX = torch.stack([
-        torch.stack([tensor_1, tensor_0, tensor_0]),
-        torch.stack([tensor_0, torch.cos(roll), -torch.sin(roll)]),
-        torch.stack([tensor_0, torch.sin(roll), torch.cos(roll)])]).reshape(3, 3)
 
-    RY = torch.stack([
-        torch.stack([torch.cos(pitch), tensor_0, torch.sin(pitch)]),
-        torch.stack([tensor_0, tensor_1, tensor_0]),
-        torch.stack([-torch.sin(pitch), tensor_0, torch.cos(pitch)])]).reshape(3, 3)
+for t in range(2000):
 
-    RZ = torch.stack([
-        torch.stack([torch.cos(yaw), -torch.sin(yaw), tensor_0]),
-        torch.stack([torch.sin(yaw), torch.cos(yaw), tensor_0]),
-        torch.stack([tensor_0, tensor_0, tensor_1])]).reshape(3, 3)
+    def optimizer_closure():
+        # reset gradient for all parameters
+        optimizer.zero_grad()
 
-    R = torch.mm(RZ, RY)
-    R = torch.mm(R, RX)
-    pred = smpl_torso @ R + translation
+        transform = torch.cat([F.pad(orientation, (0, 0, 0, 1), "constant", value=0),
+                               F.pad(translation.unsqueeze(dim=-1), (0, 0, 0, 1), "constant", value=1)], dim=2)
+        # orientation
+        # transform[0:3, 3] = translation
+        # transform = transform.unsqueeze(0)
 
-    # Compute cost function
-    loss = torch.norm(pred - keyp_torso)
-    if t % 100 == 99:
-        print(t, loss)
+        # convert points to homogenious coordinates
+        homog_coord = torch.ones(list(smpl_torso.shape)[:-1] + [1],
+                                 dtype=dtype,
+                                 device=device)
 
-    loss.backward()
+        homog_torso = torch.cat([smpl_torso, homog_coord], dim=-1)
 
-    with torch.no_grad():
-        pose = np.eye(4)
-        pose[:3, :3] = R.numpy()
-        pose[:3, 3] = translation.numpy()
+        # compute 2D projected points
+        pred = torch.einsum('bki,bji->bjk', [transform, homog_torso])
 
-        v.render_lock.acquire()
-        scene.set_pose(scene_joint, pose)
-        v.render_lock.release()
+        # transform coordinates to image space coordinates
 
-        # orientation -= learning_rate * orientation.grad
-        translation -= learning_rate * translation.grad
-        roll -= learning_rate * roll.grad
-        yaw -= learning_rate * yaw.grad
-        pitch -= learning_rate * pitch.grad
+        # Compute cost function (LSE)
+        loss = torch.sum(torch.dist(pred - homog_keyp) ** 2)
+        if t % 100 == 99:
+            print(t, loss)
 
-        translation.grad = None
-        roll.grad = None
-        yaw.grad = None
-        pitch.grad = None
-        # orientation.grad = None
-        # model.global_orient -= learning_rate * model.global_orient.grad
-        # model.transl -= learning_rate * model.transl
-        # model.global_orient.grad = None
-        # model.transl.grad = None
+        with torch.no_grad():
+            v.render_lock.acquire()
 
-        # model.reset_params(**defaultdict(
-        #     transl=model.transl,
-        #     global_orient=model.global_orient
-        # ))
+            scene.set_pose(scene_joint_left, transform[0].numpy())
+            scene.set_pose(scene_joint_right, transform[1].numpy())
+            v.render_lock.release()
+        loss.backward()
+        return loss
 
-print("roll, yaw, pitch:", roll, yaw, pitch)
-print("transl:", translation)
+    optimizer.step(optimizer_closure)
 
-RX = torch.stack([
-    torch.stack([tensor_1, tensor_0, tensor_0]),
-    torch.stack([tensor_0, torch.cos(roll), -torch.sin(roll)]),
-    torch.stack([tensor_0, torch.sin(roll), torch.cos(roll)])]).reshape(3, 3)
 
-RY = torch.stack([
-    torch.stack([torch.cos(pitch), tensor_0, torch.sin(pitch)]),
-    torch.stack([tensor_0, tensor_1, tensor_0]),
-    torch.stack([-torch.sin(pitch), tensor_0, torch.cos(pitch)])]).reshape(3, 3)
+# print("roll, yaw, pitch:", roll, yaw, pitch)
+# print("transl:", translation)
 
-RZ = torch.stack([
-    torch.stack([torch.cos(yaw), -torch.sin(yaw), tensor_0]),
-    torch.stack([torch.sin(yaw), torch.cos(yaw), tensor_0]),
-    torch.stack([tensor_0, tensor_0, tensor_1])]).reshape(3, 3)
+# RX = torch.stack([
+#     torch.stack([tensor_1, tensor_0, tensor_0]),
+#     torch.stack([tensor_0, torch.cos(roll), -torch.sin(roll)]),
+#     torch.stack([tensor_0, torch.sin(roll), torch.cos(roll)])]).reshape(3, 3)
 
-R = torch.mm(RZ, RY)
-R = torch.mm(R, RX)
+# RY = torch.stack([
+#     torch.stack([torch.cos(pitch), tensor_0, torch.sin(pitch)]),
+#     torch.stack([tensor_0, tensor_1, tensor_0]),
+#     torch.stack([-torch.sin(pitch), tensor_0, torch.cos(pitch)])]).reshape(3, 3)
 
-rot = R.detach().cpu().numpy()
+# RZ = torch.stack([
+#     torch.stack([torch.cos(yaw), -torch.sin(yaw), tensor_0]),
+#     torch.stack([torch.sin(yaw), torch.cos(yaw), tensor_0]),
+#     torch.stack([tensor_0, tensor_0, tensor_1])]).reshape(3, 3)
 
-torso = smpl_torso.detach().cpu().numpy(
-).squeeze()
-transl = translation.detach().cpu().numpy().squeeze()
+# R = torch.mm(RZ, RY)
+# R = torch.mm(R, RX)
 
-new_points = torso.dot(rot) + transl
-renderPoints(scene, [new_points[0]],
-             radius=0.05, colors=[0.7, 0.3, 0.0, 1.0])
-renderPoints(scene, [new_points[1]],
-             radius=0.05, colors=[0.0, 0.3, 0.7, 1.0])
+# rot = R.detach().cpu().numpy()
+
+# torso = smpl_torso.detach().cpu().numpy(
+# ).squeeze()
+# transl = translation.detach().cpu().numpy().squeeze()
+
+# new_points = torso.dot(rot) + transl
+# render_points(scene, [new_points[0]],
+#               radius=0.05, colors=[0.7, 0.3, 0.0, 1.0])
+# render_points(scene, [new_points[1]],
+#               radius=0.05, colors=[0.0, 0.3, 0.7, 1.0])
 # -----------------------------
 # Render the points
 # -----------------------------
