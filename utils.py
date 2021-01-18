@@ -99,6 +99,10 @@ def get_named_joint(joints: List, name: str, type="smpl"):
         return joints[joint_names_body_25[name]]
 
 
+def get_named_joints(joints: List, names: List[str], type="smpl"):
+    return [get_named_joint(joints, name, type=type) for name in names]
+
+
 def apply_mapping(
         input_data: List,
         mapping: list):
