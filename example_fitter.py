@@ -1,11 +1,13 @@
 
 
+from modules.camera import CameraProjSimple
 from modules.transform import Transform
 from renderer import Renderer
 import yaml
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from math import tan, radians
 from model import *
 # from renderer import *
 from dataset import *
@@ -88,6 +90,8 @@ r.render_points(
     radius=0.01,
     color=[0.0, 0.7, 0.0, 1.0], name="body_torso", group_name="body")
 
+keypoints[:, 2] = 0
+init_keypoints = get_named_joints(keypoints, cam_est_joints_names)
 
 # start renderer
 r.start()
@@ -102,19 +106,32 @@ keyp_torso = torch.Tensor(init_keypoints, device=device)
 
 learning_rate = 1e-3
 trans = Transform(dtype, device)
+proj = CameraProjSimple(dtype, device, -est_depth)
 optimizer = torch.optim.Adam(trans.parameters(), lr=learning_rate)
 
-for t in range(5000):
 
-    pred = trans(smpl_torso)
+def perspective_projection_matrix(fov, aspect, near, far):
+    q = 1 / tan(radians(fov * 0.5))
+    a = q / aspect
+    b = (far + near) / (near - far)
+    c = (2*near*far) / (near - far)
 
-    # apply 2d projection here
+    return np.matrix([[a,  0,  0,  0],
+                      [0,  q,  0,  0],
+                      [0,  0,  b,  c],
+                      [0,  0, -1,  0]])
+
+
+for t in range(20000):
+
+    points = trans(smpl_torso)
+    points_2d = proj(points)
 
     # point wise differences
-    diff = pred - keyp_torso
+    diff = points_2d - keyp_torso
 
     # Compute cost function
-    loss = torch.norm(diff[:, :, :2])
+    loss = torch.norm(diff)
     if t % 100 == 99:
         print(t, loss)
 
@@ -127,12 +144,3 @@ for t in range(5000):
         translation = trans.translation.numpy()
         # update model rendering
         r.set_group_transform("body", R, translation)
-
-# -----------------------------
-# Render the points
-# -----------------------------
-# v = pyrender.Viewer(scene,
-#                     use_raymond_lighting=True,
-#                     # show_world_axis=True
-#                     run_in_thread=True
-#                     )
