@@ -44,9 +44,40 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
-# ------------------------------
-# Load data
-# ------------------------------
+def estimate_depth(joints, keypoints, pairs=[
+    ("shoulder-right", "hip-right"),
+    ("shoulder-left", "hip-left")
+], cam_fy=1):
+    """estimate image depth based on the height changes due to perspective.
+    This method only provides a rough estimate by computing shoulder to hip distances
+    between SMPL joints and OpenPose keypoints.
+
+    Args:
+        joints ([type]): List of all SMPL joints
+        keypoints ([type]): List of all OpenPose keypoints
+        cam_fy (int, optional): Camera Y focal length. Defaults to 1.
+    """
+
+    # store distance vectors
+    smpl_dists = []
+    ops_dists = []
+
+    for (j1, j2) in pairs:
+        smpl_joints = get_named_joints(joints, [j1, j2])
+        ops_keyp = get_named_joints(keypoints, [j1, j2])
+
+        smpl_dists.append(smpl_joints[0] - smpl_joints[1])
+        ops_dists.append(ops_keyp[0] - ops_keyp[1])
+
+    smpl_height = np.linalg.norm(smpl_dists, axis=1).mean()
+    ops_height = np.linalg.norm(ops_dists, axis=1).mean()
+
+    return cam_fy * smpl_height / ops_height
+
+
+    # ------------------------------
+    # Load data
+    # ------------------------------
 l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 keypoints, conf = dataset[0]
@@ -63,42 +94,24 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 cam_est_joints_names = ["hip-left", "hip-right",
                         "shoulder-left", "shoulder-right"]
 
+est_depth = estimate_depth(joints, keypoints)
+
+# apply depth to keypoints
+keypoints[:, 2] = -est_depth
+
 init_joints = get_named_joints(joints, cam_est_joints_names)
 init_keypoints = get_named_joints(keypoints, cam_est_joints_names)
 
-# compute height of both 2d and 3d points
-joint_torso_height = np.array([
-    init_joints[3] - init_joints[1],
-    init_joints[2] - init_joints[0]
-]).squeeze()
-
-keypoint_torso_height = np.array([
-    init_keypoints[3] - init_keypoints[1],
-    init_keypoints[2] - init_keypoints[0]
-]).squeeze()
-
-
-jt_lengths = np.linalg.norm(joint_torso_height, axis=1)
-kp_lengths = np.linalg.norm(keypoint_torso_height, axis=1)
-print(jt_lengths, kp_lengths)
-
-jp_height = jt_lengths.mean()
-kp_height = kp_lengths.mean()
 
 scene = pyrender.Scene()
 
-camera = pyrender.PerspectiveCamera(
-    yfov=np.pi / 3.0, aspectRatio=1.414)
-cam_pose = np.eye(4)
-cam_pose[:3, 3] = np.array([0, 0, -2])
-cam_pose[0, 0] *= -1.0
-scene.add(camera, pose=cam_pose)
+
 scene_model = render_model(scene, model, model_out)
-render_points(scene, joints)
+scene_joints = render_points(scene, joints)
 
 # render shoulder joints
-scene_joint = render_points(scene, init_joints,
-                            radius=0.01, colors=[1.0, 0.0, 1.0, 1.0])
+scene_init_joints = render_points(scene, init_joints,
+                                  radius=0.01, colors=[1.0, 0.0, 1.0, 1.0])
 
 # render openpose points
 render_points(scene, keypoints,
@@ -113,8 +126,6 @@ v = pyrender.Viewer(scene,
                     # show_world_axis=True
                     run_in_thread=True
                     )
-
-time.sleep(10)
 
 # -------------------------------------
 # Optimize for translation and rotation
@@ -152,7 +163,12 @@ for t in range(200000):
     R = torch.mm(RZ, RY)
     R = torch.mm(R, RX)
     pred = smpl_torso @ R + translation
+
+    # apply 2d projection here
+
+    # point wise differences
     diff = pred - keyp_torso
+
     # Compute cost function
     loss = torch.norm(diff[:, :, :2])
     if t % 100 == 99:
@@ -166,7 +182,8 @@ for t in range(200000):
         pose[:3, 3] = translation.numpy()
 
         v.render_lock.acquire()
-        scene.set_pose(scene_joint, pose)
+        scene.set_pose(scene_init_joints, pose)
+        scene.set_pose(scene_joints, pose)
         scene.set_pose(scene_model, pose)
         v.render_lock.release()
 
