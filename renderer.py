@@ -1,127 +1,108 @@
-
-import smplx
-import torch
 import numpy as np
-import trimesh
+from utils import render_model, render_points
 import pyrender
 
 
-class SMPLyRenderer():
+class Renderer:
     def __init__(
         self,
-    ):
-        print("TODO: do some preparation here")
+        camera=None,
+        camera_pose=None
+    ) -> None:
+        super().__init__()
+        self.scene = pyrender.Scene()
+        if camera is None:
+            camera = pyrender.OrthographicCamera(ymag=1, xmag=1)
 
-    # TODO: use __call__ for this
-    def render_model(
-        self,
-        model,
-        betas: torch.TensorType,
-        body_pose: torch.TensorType,
-    ):
-        model_out = model()
-        # TODO: check if this also works with CUDA
-        vertices = model_out.vertices.detach().cpu().numpy().squeeze()
-        joints = model_out.joints.detach().cpu().numpy().squeeze()
+        if camera_pose is None:
+            camera_pose = np.eye(4)
+            camera_pose[:3, 3] = np.array([0, 0, -2])
+            camera_pose[0, 0] *= -1.0
 
-        # set vertex colors, maybe use this to highlight accuracies
-        vertex_colors = np.ones([vertices.shape[0], 4]) * [0.3, 0.3, 0.3, 0.8]
+        self.scene.add(camera, pose=camera_pose)
 
-        # triangulate vertex mesh
-        tri_mesh = trimesh.Trimesh(vertices, model.faces,
-                                   vertex_colors=vertex_colors)
+    def start(self,
+              use_reymond_lighting=True,
+              run_in_thread=True, **kwargs):
 
-        return (tri_mesh, joints, vertices)
+        self.run_in_thread = run_in_thread
+        self.viewer = pyrender.Viewer(
+            self.scene,
+            run_in_thread=run_in_thread,
+            use_reymond_lighting=use_reymond_lighting,
+            **kwargs
+        )
 
-    def set_keypoints(self, keypoints):
-        scene = self.scene
-        self.viewer.render_lock.acquire()
-
-        if self.keypoints_node is not None:
-            scene.remove(self.keypoints_node)
-
-        sm = trimesh.creation.uv_sphere(radius=0.01)
-        sm.visual.vertex_colors = [0.0, 0.0, 1.0, 1.0]
-        tfs = np.tile(np.eye(4), (len(keypoints), 1, 1))
-        tfs[:, :3, 3] = keypoints
-        keypoints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-        self.keypoints_node = scene.add(keypoints_pcl, name="keypoints")
-
-        self.viewer.render_lock.release()
-
-    def set_model(self, model):
-        scene = self.scene
-        self.viewer.render_lock.acquire()
-
-        if self.keypoints_node is not None:
-            scene.remove(self.keypoints_node)
-
-        sm = trimesh.creation.uv_sphere(radius=0.01)
-        sm.visual.vertex_colors = [0.0, 0.0, 1.0, 1.0]
-        tfs = np.tile(np.eye(4), (len(keypoints), 1, 1))
-        tfs[:, :3, 3] = keypoints
-        keypoints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-        self.keypoints_node = scene.add(keypoints_pcl, name="keypoints")
-
-        self.viewer.render_lock.release()
-
-    def display_mesh(
-        self,
-        tri_mesh: trimesh.Trimesh,
-        joints=None,
-        keypoints=None,
-        render_openpose_wireframe=True,
-    ):
-        mesh = pyrender.Mesh.from_trimesh(tri_mesh)
-
-        scene = pyrender.Scene()
-        self.body_node = scene.add(mesh, name="body_mesh")
-        if joints is not None:
-            sm = trimesh.creation.uv_sphere(radius=0.005)
-            sm.visual.vertex_colors = [0.9, 0.1, 0.1, 1.0]
-            tfs = np.tile(np.eye(4), (len(joints), 1, 1))
-            tfs[:, :3, 3] = joints
-            joints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-            self.joints_node = scene.add(joints_pcl, name="joints")
-
-        if keypoints is not None:
-
-        self.start_render(scene)
-
-    def start_render(
-        self,
-        scene,
-    ):
-        self.scene = scene
-        self.viewer = pyrender.Viewer(scene,
-                                      use_raymond_lighting=True,
-                                      # show_world_axis=True
-                                      run_in_thread=True
-                                      )
-        # self.update()
-        while True:
-            pass
-
-    def update(self):
-        pose = self.body_node.get_pose()
-        print(pose)
-        self.viewer.render_lock.acquire()
-        self.scene.set_pose(self.body_node, pose)
-        self.viewer.render_lock.release()
-
-    def end_scene(self):
+    def stop(self):
         self.viewer.close_external()
         while self.viewer.is_active:
             pass
 
-    def display_model(
-        self,
-        model,
-        betas: torch.TensorType,
-        body_pose: torch.TensorType,
-        keypoints=None,
-    ):
-        (tri_mesh, joints, vertices) = self.render_model(
-            model, betas, body_pose)
+    def requires_lock(self):
+        return self.run_in_thread and self.viewer
 
-        self.display_mesh(tri_mesh, joints, keypoints)
+    def render_points(self, points, radius=0.005, colors=[0.0, 0.0, 1.0, 1.0], name=None):
+        if self.requires_lock():
+            self.viewer.render_lock.acquire()
+
+        node = render_points(self.scene, points=points,
+                             radius=radius, colors=colors, name=name)
+
+        if self.requires_lock():
+            self.viewer.render_lock.release()
+
+        return node
+
+    def render_keypoints(self, points, radius=0.005, colors=[0.0, 0.0, 1.0, 1.0]):
+        """Utility method to render joints, executes render_points with a fixed name
+
+        Args:
+            points ([type]): [description]
+            radius (float, optional): [description]. Defaults to 0.005.
+            colors (list, optional): [description]. Defaults to [0.0, 0.0, 1.0, 1.0].
+        """
+        return self.render_points(points, radius, colors, name="ops_keypoints")
+
+    def render_joints(self, points, radius=0.005, colors=[0.0, 0.0, 1.0, 1.0]):
+        """Utility method to render joints, executes render_points with a fixed name
+
+        Args:
+            points ([type]): [description]
+            radius (float, optional): [description]. Defaults to 0.005.
+            colors (list, optional): [description]. Defaults to [0.0, 0.0, 1.0, 1.0].
+        """
+        return self.render_points(points, radius, colors, name="body_joints")
+
+    def render_model(
+            self,
+            model,
+            model_out,
+            color=[0.3, 0.3, 0.3, 0.8],
+            replace=True
+    ):
+        if model_out is None:
+            model_out = model()
+
+        return render_model(self.scene, model, model_out,
+                            color, "body_mesh", replace=replace)
+
+    def set_pose(self, name, pose):
+        # find node
+        cur_node = None
+
+        for node in self.scene.get_nodes(name):
+            if node is not None:
+                cur_node = node
+                break
+
+        if cur_node is None:
+            print("[render] node not found with name", name)
+            return
+
+        if self.requires_lock():
+            self.viewer.render_lock.acquire()
+
+        self.scene.set_pose(cur_node, pose)
+
+        if self.requires_lock():
+            self.viewer.render_lock.release()
