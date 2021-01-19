@@ -178,3 +178,34 @@ def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=
     pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
     # return the render scene node
     return scene.add(pcl, name=name)
+
+
+def estimate_depth(joints, keypoints, pairs=[
+    ("shoulder-right", "hip-right"),
+    ("shoulder-left", "hip-left")
+], cam_fy=1):
+    """estimate image depth based on the height changes due to perspective.
+    This method only provides a rough estimate by computing shoulder to hip distances
+    between SMPL joints and OpenPose keypoints.
+
+    Args:
+        joints ([type]): List of all SMPL joints
+        keypoints ([type]): List of all OpenPose keypoints
+        cam_fy (int, optional): Camera Y focal length. Defaults to 1.
+    """
+
+    # store distance vectors
+    smpl_dists = []
+    ops_dists = []
+
+    for (j1, j2) in pairs:
+        smpl_joints = get_named_joints(joints, [j1, j2])
+        ops_keyp = get_named_joints(keypoints, [j1, j2])
+
+        smpl_dists.append(smpl_joints[0] - smpl_joints[1])
+        ops_dists.append(ops_keyp[0] - ops_keyp[1])
+
+    smpl_height = np.linalg.norm(smpl_dists, axis=1).mean()
+    ops_height = np.linalg.norm(ops_dists, axis=1).mean()
+
+    return cam_fy * smpl_height / ops_height
