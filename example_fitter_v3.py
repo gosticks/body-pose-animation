@@ -1,5 +1,6 @@
 
 
+from renderer import Renderer
 import yaml
 import torch
 import time
@@ -75,9 +76,9 @@ def estimate_depth(joints, keypoints, pairs=[
     return cam_fy * smpl_height / ops_height
 
 
-    # ------------------------------
-    # Load data
-    # ------------------------------
+# ------------------------------
+# Load data
+# ------------------------------
 l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 keypoints, conf = dataset[0]
@@ -103,29 +104,26 @@ init_joints = get_named_joints(joints, cam_est_joints_names)
 init_keypoints = get_named_joints(keypoints, cam_est_joints_names)
 
 
-scene = pyrender.Scene()
+# setup renderer
+r = Renderer()
+r.render_model(model, model_out)
+r.render_joints(joints)
+r.render_keypoints(keypoints)
+
+# render openpose torso markers
+r.render_points(
+    init_keypoints,
+    radius=0.01,
+    color=[1.0, 0.0, 1.0, 1.0], name="ops_torso", group_name="keypoints")
+
+r.render_points(
+    init_joints,
+    radius=0.01,
+    color=[0.0, 0.7, 0.0, 1.0], name="body_torso", group_name="body")
 
 
-scene_model = render_model(scene, model, model_out)
-scene_joints = render_points(scene, joints)
-
-# render shoulder joints
-scene_init_joints = render_points(scene, init_joints,
-                                  radius=0.01, colors=[1.0, 0.0, 1.0, 1.0])
-
-# render openpose points
-render_points(scene, keypoints,
-              radius=0.005, colors=[0.0, 0.3, 0.0, 1.0])
-
-render_points(scene, init_keypoints,
-              radius=0.01, colors=[0.0, 0.7, 0.0, 1.0])
-
-
-v = pyrender.Viewer(scene,
-                    use_raymond_lighting=True,
-                    # show_world_axis=True
-                    run_in_thread=True
-                    )
+# start renderer
+r.start()
 
 # -------------------------------------
 # Optimize for translation and rotation
@@ -177,15 +175,8 @@ for t in range(200000):
     loss.backward()
 
     with torch.no_grad():
-        pose = np.eye(4)
-        pose[:3, :3] = R.numpy()
-        pose[:3, 3] = translation.numpy()
-
-        v.render_lock.acquire()
-        scene.set_pose(scene_init_joints, pose)
-        scene.set_pose(scene_joints, pose)
-        scene.set_pose(scene_model, pose)
-        v.render_lock.release()
+        # update model rendering
+        r.set_group_transform("body", R.numpy(), translation.numpy())
 
         translation -= learning_rate * translation.grad
         roll -= learning_rate * roll.grad
