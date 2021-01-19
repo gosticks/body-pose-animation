@@ -15,64 +15,66 @@ import torch.nn as nn
 # Camera module is heavily inspired by the SMPLify implementation
 
 
-class Camera(nn.Module):
+# class Camera(nn.Module):
+#     def __init__(
+#         self,
+#         fx=None,
+#         fy=None,
+#         center=None,
+#         plain_depth=0,
+#         dtype=torch.float32,
+#         device=None,
+#     ):
+#         super(Camera, self).__init__()
+
+#         self.dtype = dtype
+#         self.device = device
+
+#         self.register_buffer("fx", torch.Tensor([fx], device=device))
+#         self.register_buffer("fy", torch.Tensor([fy], device=device))
+#         camera_intrinsics = torch.zeros(
+#             [2, 2], dtype=dtype, device=device)
+#         camera_intrinsics[0, 0] = self.fx
+#         camera_intrinsics[1, 1] = self.fy
+
+#         self.register_buffer("camera_intrinsics",
+#                              torch.inverse(camera_intrinsics))
+#         self.register_buffer("center", center)
+
+#     def forward(self, joints):
+#         # translate to homogeneous coordinates
+#         homog_coord = torch.ones(
+#             list(joints.shape)[:-1] + [1],
+#             dtype=self.dtype,
+#             device=self.device)
+#         # Convert the points to homogeneous coordinates
+#         projected_points = torch.cat([joints, homog_coord], dim=-1)
+
+#         img_points = torch.div(projected_points[:, :, :2],
+#                                projected_points[:, :, 2].unsqueeze(dim=-1))
+#         img_points = torch.einsum('bki,bji->bjk', [self.camera_intrinsics, img_points]) \
+#             + self.center.unsqueeze(dim=1)
+#         return img_points
+
+class CameraProjSimple(nn.Module):
     def __init__(
         self,
-        rotation=None,
-        translation=None,
-        fx=None,
-        fy=None,
-        center=None,
         dtype=torch.float32,
         device=None,
-        batch_size=1
+        z_scale=0.5
     ):
-        super(Camera, self).__init__()
+        super(CameraProjSimple, self).__init__()
 
-        self.batch_size = batch_size
         self.dtype = dtype
         self.device = device
 
-        self.register_buffer("fx", torch.Tensor([fx], device=device))
-        self.register_buffer("fy", torch.Tensor([fy], device=device))
-        cam_intr = torch.zeros(
-            [batch_size, 2, 2], dtype=dtype, device=device)
-        cam_intr[:, 0, 0] = self.fx
-        cam_intr[:, 1, 1] = self.fy
-
-        self.register_buffer("cam_intr", cam_intr)
-        self.register_buffer("center", center)
-
-        translation = nn.Parameter(
-            translation, requires_grad=True)
-        self.register_parameter("translation", translation)
-
-        rotation = nn.Parameter(
-            rotation,
-            requires_grad=True
-        )
-        self.register_parameter("rotation", rotation)
+        zs = torch.ones(1, device=device)
+        zs *= z_scale
+        print(zs)
+        self.register_buffer("z_scale", zs)
 
     def forward(self, points):
-        transform = torch.cat([
-            F.pad(self.rotation, (0, 0, 0, 1), "constant", value=0),
-            F.pad(
-                self.translation.unsqueeze(dim=-1),
-                (0, 0, 0, 1),
-                "constant", value=1)
-        ], dim=2)
-
-        homog_coord = torch.ones(list(points.shape)[:-1] + [1],
-                                 dtype=points.dtype,
-                                 device=self.device)
-        # Convert the points to homogeneous coordinates
-        points_h = torch.cat([points, homog_coord], dim=-1)
-
-        projected_points = torch.einsum('bki,bji->bjk',
-                                        [transform, points_h])
-
-        img_points = torch.div(projected_points[:, :, :2],
-                               projected_points[:, :, 2].unsqueeze(dim=-1))
-        img_points = torch.einsum('bki,bji->bjk', [self.cam_intr, img_points]) \
-            + self.center.unsqueeze(dim=1)
-        return img_points
+        proj_points = torch.mul(
+            points[:, :, :2], points[:, :, 2] / self.z_scale)
+        proj_points = F.pad(proj_points, (0, 1, 0, 0), value=0)
+        return proj_points
