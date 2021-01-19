@@ -124,7 +124,9 @@ def perspective_projection_matrix(fov, aspect, near, far):
                       [0,  0, -1,  0]])
 
 
-for t in range(20000):
+time.sleep(15)
+
+for t in range(50000):
 
     points = trans(smpl_torso)
     points_2d = proj(points)
@@ -132,11 +134,10 @@ for t in range(20000):
     # point wise differences
     diff = points_2d - keyp_torso
 
-    # time.sleep(0.01)
-
     # Compute cost function
     loss = torch.norm(diff)
     if t % 100 == 99:
+        time.sleep(1)
         print(t, loss.item())
 
     optimizer.zero_grad()
@@ -148,3 +149,7 @@ for t in range(20000):
         translation = trans.translation.numpy()
         # update model rendering
         r.set_group_transform("body", R, translation)
+
+
+for t in range(50000):
+    print("do cost evaluation here")
