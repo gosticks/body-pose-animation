@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from math import tan, radians
 from model import *
+import time
 # from renderer import *
 from dataset import *
 from utils import get_named_joints, estimate_depth
@@ -27,7 +28,8 @@ ascii_logo = """\
 
 
 dtype = torch.float
-device = torch.device("cpu")
+# torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cpu')
 
 
 def load_config():
@@ -130,10 +132,12 @@ for t in range(20000):
     # point wise differences
     diff = points_2d - keyp_torso
 
+    # time.sleep(0.01)
+
     # Compute cost function
     loss = torch.norm(diff)
     if t % 100 == 99:
-        print(t, loss)
+        print(t, loss.item())
 
     optimizer.zero_grad()
     loss.backward()
