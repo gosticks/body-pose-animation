@@ -26,7 +26,8 @@ class SMPLyDataset(torch.utils.data.Dataset):
             json_data = json.load(file)
             # FIXME: always take first person for now
             keypoints = json_data['people'][0]['pose_keypoints_2d']
-        return self.transform(keypoints)
+        #return self.transform(keypoints) TODO: uncomment back
+        return keypoints
         # compute size of dataset based on items in folder
         # it is assumed that each "item" consists of 3 files
 
