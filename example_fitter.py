@@ -23,6 +23,7 @@ ascii_logo = """\
  /$$  \ $$| $$\  $ | $$| $$      | $$      | $$
 |  $$$$$$/| $$ \/  | $$| $$      | $$$$$$$$| $$
  \______/ |__/     |__/|__/      |________/|__/
+ 
 """
 
 
@@ -109,19 +110,6 @@ learning_rate = 1e-3
 trans = Transform(dtype, device)
 proj = CameraProjSimple(dtype, device, -est_depth)
 optimizer = torch.optim.Adam(trans.parameters(), lr=learning_rate)
-
-
-def perspective_projection_matrix(fov, aspect, near, far):
-    q = 1 / tan(radians(fov * 0.5))
-    a = q / aspect
-    b = (far + near) / (near - far)
-    c = (2*near*far) / (near - far)
-
-    return np.matrix([[a,  0,  0,  0],
-                      [0,  q,  0,  0],
-                      [0,  0,  b,  c],
-                      [0,  0, -1,  0]])
-
 
 for t in range(50000):
 
