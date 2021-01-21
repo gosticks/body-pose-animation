@@ -1,11 +1,12 @@
 import json
+from torch.utils.data import Dataset, DataLoader
 import torch
 import os
 import numpy as np
 from utils import get_mapping_arr, apply_mapping, openpose_to_opengl_coords
 
 
-class SMPLyDataset(torch.utils.data.Dataset):
+class SMPLyDataset(Dataset):
     def __init__(
             self,
             root_dir="./samples",
