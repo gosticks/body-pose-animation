@@ -48,6 +48,8 @@ class SMPLyModel():
             use_face_contour=self.use_face_contour,
             create_body_pose=True,
             num_betas=self.num_betas,
+            return_verts=True,
+            # global_orient=torch.randn(3),
             num_expression_coeffs=self.num_expression_coeffs,
             ext=self.ext)
         print(self.model)
