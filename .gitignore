@@ -91,3 +91,7 @@ target/
 
 models/*
 !models/.gitkeep
+
+.vscode
+tum-3d-proj
+reference
