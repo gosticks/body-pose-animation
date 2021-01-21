@@ -2,13 +2,13 @@
 # Initial camera estimation based on the torso keypoints obtained from OpenPose.
 
 import yaml
-from dataset import SMPLyDataset
+from dataset import *
 from model import *
-import pyrender
-import trimesh
 from scipy.spatial.transform import Rotation as R
 from scipy.optimize import minimize
 import time
+from utils import *
+from renderer import *
 
 dtype = torch.float64
 
@@ -20,76 +20,48 @@ def load_config():
 
     return config
 
-# TODO: use already created methods
-def create_visualization_points(points, color):
-    sm = trimesh.creation.uv_sphere(radius=0.005)
-    sm.visual.vertex_colors = color
-    tfs = np.tile(np.eye(4), (len(points_3d), 1, 1))
-    tfs[:, :3, 3] = points
-    joints_pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-    return joints_pcl
-
-
 class CameraEstimate:
-    def __init__(self, model: smplx.SMPLX, dataset):
+    def __init__(self, model: smplx.SMPLX, dataset, renderer):
         self.model = model
         self.dataset = dataset
         self.output_model = model(return_verts=True)
+        self.renderer = renderer
 
     def get_torso_keypoints(self):
-        # TODO: Later use separate functions for normalizing and loading the keypoints
+
         keypoints = self.dataset[0]
-        keypoints = np.reshape(keypoints, (25, 3))
+        cam_est_joints_names = ["hip-left", "hip-right",
+                                "shoulder-left", "shoulder-right"]
 
-        # TODO: use data loader methods
-        torso_joints_idxs = [1, 2, 16, 17]  # hip left, hip right, left shoulder, right shoulder
-        torso_keypoints_2d = np.array([keypoints[x] for x in torso_joints_idxs])
-        torso_keypoints_2d[:, 0] = torso_keypoints_2d[:, 0] / 1920 * 2 - 1
-        torso_keypoints_2d[:, 1] = torso_keypoints_2d[:, 1] / 1080 * 2 - 1
-        torso_keypoints_2d[:, 2] = 0
+        smpl_keypoints = self.output_model.joints.detach().cpu().numpy().squeeze()
 
-        smpl_keypoints = self.output_model.joints.detach().cpu().numpy()
-        torso_keypoints_3d = np.array([smpl_keypoints[0][x] for x in torso_joints_idxs])
+        torso_keypoints_3d = np.array(get_named_joints(smpl_keypoints, cam_est_joints_names))
+        torso_keypoints_2d = np.array(get_named_joints(keypoints[0], cam_est_joints_names))
 
-        return torso_keypoints_2d, torso_keypoints_3d
+        return np.reshape(torso_keypoints_2d, (4, 3)), np.reshape(torso_keypoints_3d, (4, 3))
 
 
-    def visualize_mesh(self, points_2d, points_3d, pose):
+    def visualize_mesh(self, keypoints, smpl_points):
 
         # hardcoded scaling factor
-        points_3d /= 2.6
+        scaling_factor = 1
+        smpl_points /= scaling_factor
 
-        self.scene = pyrender.Scene()
+        color_3d = [0.1, 0.9, 0.1, 1.0]
+        self.transformed_points = self.renderer.render_points(smpl_points, color=color_3d)
 
-        vertices = self.output_model.vertices.detach().cpu().numpy().squeeze() / 2.6
-        vertex_colors = np.ones([vertices.shape[0], 4]) * [0.3, 0.3, 0.3, 0.8]
+        color_2d = [0.9, 0.1, 0.1, 1.0]
+        self.renderer.render_keypoints(keypoints, color=color_2d)
 
-        tri_mesh = trimesh.Trimesh(vertices, self.model.faces,
-                                   vertex_colors=vertex_colors)
+        model_color = [0.3, 0.3, 0.3, 0.8]
+        self.verts = self.renderer.render_model(self.model, self.output_model, model_color)
 
-        mesh = pyrender.Mesh.from_trimesh(tri_mesh)
-        self.verts = self.scene.add(mesh)
+        self.renderer.start()
 
-        if pose is not None:
-            self.scene.set_pose(self.verts, pose)
-
-        color = [0.1, 0.9, 0.1, 1.0]
-        self.scene.add(create_visualization_points(points_3d, color))
-
-        color = [0.1, 0.1, 0.9, 1.0]
-        self.transformed_points = self.scene.add(create_visualization_points(points_3d, color))
-
-        if pose is not None:
-            self.scene.set_pose(self.transformed_points, pose)
-
-        color = [0.9, 0.1, 0.1, 1.0]
-        self.scene.add(create_visualization_points(points_2d, color))
-        pyrender.Viewer(self.scene, use_raymond_lighting=True, run_in_thread=True, viewport_size=(1280, 720))
-
-    def loss_model(self, params, X):
+    def loss_model(self, params, points):
         translation = params[:3]
         rotation = R.from_euler('xyz', [params[3], params[4], params[5]], degrees=False)
-        y_pred = X @ rotation.as_matrix() + translation
+        y_pred = points @ rotation.as_matrix() + translation
         return y_pred
 
     def sum_of_squares(self, params, X, Y):
@@ -97,12 +69,14 @@ class CameraEstimate:
         loss = np.sum((y_pred - Y) ** 2)
         return loss
 
-    def callback(self, params):
-        time.sleep(0.3)
+    def iteration_callback(self, params):
+        time.sleep(0.1)
         #input("Press a key for next iteration...")
         current_pose = self.params_to_pose(params)
-        self.scene.set_pose(self.transformed_points, current_pose)
-        self.scene.set_pose(self.verts, current_pose)
+
+        # TODO: use renderer.py methods
+        self.renderer.scene.set_pose(self.transformed_points, current_pose)
+        self.renderer.scene.set_pose(self.verts, current_pose)
 
     def params_to_pose(self, params):
         pose = np.eye(4)
@@ -116,25 +90,21 @@ class CameraEstimate:
         rotation = np.random.rand(3) * 2 * np.pi
         params = np.concatenate((translation, rotation))
 
-        points_2d, points_3d = self.get_torso_keypoints()
+        init_points_2d, init_points_3d = self.get_torso_keypoints()
 
-        self.visualize_mesh(points_2d, points_3d, None)
+        self.visualize_mesh(init_points_2d, init_points_3d)
 
-        res = minimize(self.sum_of_squares, x0=params, args=(points_3d, points_2d), callback=self.callback, tol=1e-4, method="BFGS")
+        res = minimize(self.sum_of_squares, x0=params, args=(init_points_3d, init_points_2d),
+                       callback=self.iteration_callback, tol=1e-4, method="BFGS")
         print(res)
 
-        pose = self.params_to_pose(res.x)
-        print(pose)
-
-        return pose
+        transform_matrix = self.params_to_pose(res.x)
+        return transform_matrix
 
 conf = load_config()
 dataset = SMPLyDataset()
+model = SMPLyModel(conf['modelPath']).create_model()
 
-# TODO: use data loader
-model = smplx.create("models/smpl/SMPL_FEMALE.pkl", model_type='smpl')
-output_model = model(return_verts=True)
-
-camera = CameraEstimate(model, dataset)
-points_2d, points_3d = camera.get_torso_keypoints()
+camera = CameraEstimate(model, dataset, Renderer())
 pose = camera.estimate_camera_pos()
+print("Pose matrix: \n", pose)
