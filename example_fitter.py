@@ -23,7 +23,6 @@ ascii_logo = """\
  /$$  \ $$| $$\  $ | $$| $$      | $$      | $$
 |  $$$$$$/| $$ \/  | $$| $$      | $$$$$$$$| $$
  \______/ |__/     |__/|__/      |________/|__/
-
 """
 
 
@@ -124,8 +123,6 @@ def perspective_projection_matrix(fov, aspect, near, far):
                       [0,  0, -1,  0]])
 
 
-time.sleep(15)
-
 for t in range(50000):
 
     points = trans(smpl_torso)
@@ -137,7 +134,6 @@ for t in range(50000):
     # Compute cost function
     loss = torch.norm(diff)
     if t % 100 == 99:
-        time.sleep(1)
         print(t, loss.item())
 
     optimizer.zero_grad()

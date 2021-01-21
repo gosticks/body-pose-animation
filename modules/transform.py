@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -15,8 +16,11 @@ class Transform(nn.Module):
         translation = nn.Parameter(translation, requires_grad=True)
         self.register_parameter("translation", translation)
 
-        orientation = torch.randn((3), device=device, dtype=dtype)
-        orientation = nn.Parameter(orientation, requires_grad=True)
+        orientation = torch.ones((1, 3), device=device, dtype=dtype)
+        orientation = nn.init.xavier_uniform_(
+            orientation, gain=1.0)
+        orientation = orientation.clamp(-math.pi * 0.25, math.pi * 0.25)
+        orientation = nn.Parameter(orientation.squeeze(), requires_grad=True)
         self.register_parameter("orientation", orientation)
 
         # self.roll = torch.randn(
@@ -54,8 +58,10 @@ class Transform(nn.Module):
             torch.stack([torch.sin(yaw), torch.cos(yaw), tensor_0]),
             torch.stack([tensor_0, tensor_0, tensor_1])]).reshape(3, 3)
 
-        R = torch.mm(RZ, RY)
-        R = torch.mm(R, RX)
+        R = torch.mm(RX, RY)
+        R = torch.mm(R, RZ)
+        # R = torch.mm(RZ, RY)
+        #R = torch.mm(R, RX)
         return R
 
     def forward(self, joints):
