@@ -41,7 +41,7 @@ class SMPLyDataset(torch.utils.data.Dataset):
         # remap data to match expacted target format
         remapped_data = apply_mapping(data, mapping)
         # TODO: pass image resolution here
-        return openpose_to_opengl_coords(remapped_data, 1920, 1080)
+        return openpose_to_opengl_coords(remapped_data, 1080, 1080)
 
     def __len__(self):
         # TODO: something like this could work for now we simply use one item
