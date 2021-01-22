@@ -1,6 +1,7 @@
 
 # Initial camera estimation based on the torso keypoints obtained from OpenPose.
 
+from numpy.core.fromnumeric import transpose
 import yaml
 from dataset import *
 from model import *
@@ -9,6 +10,7 @@ from scipy.optimize import minimize
 import time
 from utils import *
 from renderer import *
+import torchgeometry as tgm
 
 dtype = torch.float64
 
@@ -26,6 +28,7 @@ class CameraEstimate:
         self.dataset = dataset
         self.output_model = model(return_verts=True)
         self.renderer = renderer
+        self.toggle = False
 
     def get_torso_keypoints(self):
 
@@ -84,22 +87,74 @@ class CameraEstimate:
         pose[:3, 3] = params[:3]
         return pose
 
+    def torch_params_to_pose(self, params):
+        rotation = tgm.angle_axis_to_rotation_matrix(params[1])
+        rotation[:,:3, 3] = params[0]
+        return rotation[0,:,:]
+
+
     def estimate_camera_pos(self):
+        if self.toggle:
+            translation = np.zeros(3)
+            rotation = np.random.rand(3) * 2 * np.pi
+            params = np.concatenate((translation, rotation))
+            print(params)
 
-        translation = np.zeros(3)
-        rotation = np.random.rand(3) * 2 * np.pi
-        params = np.concatenate((translation, rotation))
+            init_points_2d, init_points_3d = self.get_torso_keypoints()
 
-        init_points_2d, init_points_3d = self.get_torso_keypoints()
+            self.visualize_mesh(init_points_2d, init_points_3d)
 
-        self.visualize_mesh(init_points_2d, init_points_3d)
+            res = minimize(self.sum_of_squares, x0=params, args=(init_points_3d, init_points_2d),
+                        callback=self.iteration_callback, tol=1e-4, method="BFGS")
+            print(res)
 
-        res = minimize(self.sum_of_squares, x0=params, args=(init_points_3d, init_points_2d),
-                       callback=self.iteration_callback, tol=1e-4, method="BFGS")
-        print(res)
+            transform_matrix = self.params_to_pose(res.x)
+            return transform_matrix
+        else:
+            translation = torch.zeros(3, requires_grad = True)
+            rotation = torch.rand(1, 3, requires_grad = True)
+            rotation.float()
+            translation.float()
 
-        transform_matrix = self.params_to_pose(res.x)
-        return transform_matrix
+            init_points_2d, init_points_3d = self.get_torso_keypoints()
+
+            self.visualize_mesh(init_points_2d, init_points_3d)
+
+            init_points_2d = torch.from_numpy(init_points_2d)
+            init_points_3d = torch.from_numpy(init_points_3d)
+
+            params = [translation, rotation]
+            opt = torch.optim.Adam(params, lr=0.1)
+
+            def C(params, X):
+                translation = params[0]
+                rotation = tgm.angle_axis_to_rotation_matrix(params[1])
+                # y_pred = X @ rotation[:,:3,:3] + translation
+                y_pred = torch.zeros(4,3)
+                y_pred[0,:] = rotation[0,:3,:3] @ X[0,:] + translation
+                y_pred[1,:] = rotation[0,:3,:3] @ X[1,:] + translation
+                y_pred[2,:] = rotation[0,:3,:3] @ X[2,:] + translation
+                y_pred[3,:] = rotation[0,:3,:3] @ X[3,:] + translation
+                return y_pred
+                
+            stop = True
+            while stop:
+                y_pred = C(params, init_points_3d)
+                loss = torch.nn.MSELoss()(init_points_2d.float(), y_pred.float() )
+                loss.requres_grad = True
+                opt.zero_grad()
+                loss.float()
+                loss.backward()
+                opt.step()
+                stop = loss > 3e-4
+                current_pose = self.torch_params_to_pose(params)
+                current_pose = current_pose.detach().numpy()
+                self.renderer.scene.set_pose(self.transformed_points, current_pose)
+                self.renderer.scene.set_pose(self.verts, current_pose)
+            transform_matrix = self.torch_params_to_pose(params)
+            return transform_matrix
+    
+            
 
 conf = load_config()
 dataset = SMPLyDataset()
