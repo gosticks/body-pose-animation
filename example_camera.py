@@ -44,7 +44,7 @@ print("creating model")
 l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 print("loading keypoints")
-keypoints, conf = dataset[0]
+keypoints, conf = dataset[2]
 print("keypoints shape:", keypoints.shape)
 # ---------------------------------
 # Generate model and get joints

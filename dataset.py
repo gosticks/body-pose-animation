@@ -48,4 +48,4 @@ class SMPLyDataset(Dataset):
         # num_files = len(
         #     [name for name in os.listdir("./sample") if os.path.isfile(os.path.join("./sample", name))])
         # return num_files / 3
-        return 1
+        return 3
