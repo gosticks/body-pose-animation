@@ -130,8 +130,8 @@ def openpose_to_opengl_coords(
 
     points = np.array([
         [
-            x / real_width * 2 - 1,
-            -y / real_height * 2 + 1,
+            x / real_width * 5 - 1,
+            -y / real_height * 5 + 1,
             0
         ] for (x, y, z) in input_data])
 
@@ -176,11 +176,11 @@ def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=
     tfs = np.tile(np.eye(4), (len(points), 1, 1))
     tfs[:, :3, 3] = points
     pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-    # return the render scene node
+    # return the render scsene node
     return scene.add(pcl, name=name)
 
 
-def estimate_depth(joints, keypoints, pairs=[
+def estimate_scale(joints, keypoints, pairs=[
     ("shoulder-right", "hip-right"),
     ("shoulder-left", "hip-left")
 ], cam_fy=1):

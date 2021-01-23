@@ -12,7 +12,7 @@ from model import *
 import time
 # from renderer import *
 from dataset import *
-from utils import get_named_joints, estimate_depth
+from utils import get_named_joints, estimate_scale
 
 ascii_logo = """\
   /$$$$$$  /$$      /$$ /$$$$$$$  /$$   /$$     /$$
@@ -66,10 +66,10 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 # ---------------------------------
 cam_est_joints_names = ["hip-left", "hip-right",
                         "shoulder-left", "shoulder-right"]
-est_depth = estimate_depth(joints, keypoints)
+est_scale = estimate_scale(joints, keypoints)
 
-# apply depth to keypoints
-keypoints[:, 2] = -est_depth
+# apply scaling to keypoints
+keypoints = keypoints * est_scale
 
 init_joints = get_named_joints(joints, cam_est_joints_names)
 init_keypoints = get_named_joints(keypoints, cam_est_joints_names)
@@ -108,7 +108,7 @@ keyp_torso = torch.Tensor(init_keypoints, device=device)
 
 learning_rate = 1e-3
 trans = Transform(dtype, device)
-proj = CameraProjSimple(dtype, device, -est_depth)
+proj = CameraProjSimple(dtype, device, 1)
 optimizer = torch.optim.Adam(trans.parameters(), lr=learning_rate)
 loss_layer = torch.nn.MSELoss()
 

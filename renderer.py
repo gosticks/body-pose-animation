@@ -18,8 +18,6 @@ class Renderer:
         if camera is None:
             camera = pyrender.OrthographicCamera(ymag=1, xmag=1)
 
-       
-
         if camera_pose is None:
             camera_pose = np.eye(4)
             camera_pose[:3, :3] = R.from_rotvec(np.pi/2 * np.array([0, 0, 0])).as_matrix()
