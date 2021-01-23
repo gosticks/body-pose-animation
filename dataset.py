@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 import os
 import numpy as np
-from utils import get_mapping_arr, apply_mapping, openpose_to_opengl_coords
+from utils.mapping import get_mapping_arr, apply_mapping, openpose_to_opengl_coords
 
 
 class SMPLyDataset(Dataset):
@@ -12,7 +12,7 @@ class SMPLyDataset(Dataset):
             self,
             root_dir="./samples",
             raw_img_format="frame-{id}.jpg",
-            size: Tuple[int, int]=(1080, 1080)
+            size: Tuple[int, int] = (1080, 1080)
     ):
         self.root_dir = root_dir
         self.raw_img_format = raw_img_format

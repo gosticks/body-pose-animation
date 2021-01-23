@@ -1,8 +1,9 @@
 import numpy as np
-from utils import render_model, render_points
+from pyrender import scene
+from utils.render import render_model, render_points, render_camera, render_image_plane
 import pyrender
 from scipy.spatial.transform import Rotation as R
-import cv2
+
 
 class Renderer:
     def __init__(
@@ -21,19 +22,17 @@ class Renderer:
             camera = pyrender.OrthographicCamera(ymag=1, xmag=1)
 
         if camera_pose is None:
-            # camera_pose = np.eye(4)
-            # camera_pose[:3, :3] = R.from_rotvec(np.pi/2 * np.array([0, 0, 0])).as_matrix()
-            # camera_pose[:3, 3] = np.array([0, 0, 4])
-
             camera_pose = np.eye(4)
-            camera_pose[:3, 3] = np.array([width / height - 1, 0, width / height])
+            camera_pose[:3, 3] = np.array(
+                [width / height - 1, 0, width / height])
 
         self.groups = {
             "body": [],
             "keypoints": []
         }
 
-        self.scene.add(pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0))
+        self.scene.add(pyrender.DirectionalLight(
+            color=[1.0, 1.0, 1.0], intensity=10.0))
         self.scene.add(camera, pose=camera_pose)
 
     def start(self,
@@ -91,6 +90,17 @@ class Renderer:
 
         return node
 
+    def render_camera(self, radius=0.1, height=0.1, color=[0.0, 0.0, 1.0, 1.0], name=None, group_name=None):
+
+        self.acquire()
+        node = render_camera(self.scene, radius=radius,
+                             height=height, color=color, name=name)
+        self.release()
+
+        self.add_to_group(group_name, node)
+
+        return node
+
     def render_keypoints(self, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0]):
         """Utility method to render joints, executes render_points with a fixed name
 
@@ -120,10 +130,16 @@ class Renderer:
             model,
             model_out,
             color=[1.0, 0.3, 0.3, 0.8],
-            replace=True
+            replace=True,
+            keep_pose=False,
     ):
         if model_out is None:
             model_out = model()
+
+        if keep_pose:
+            node = self.get_node("body_mesh")
+            if node is not None:
+                original_pose = node.pose
 
         self.remove_from_group("body", "body_mesh")
 
@@ -137,20 +153,21 @@ class Renderer:
 
     def render_image(self, image):
 
-        height, width, _ = image.shape
-        vertex_colors = np.reshape(image, (-1, 3))
+        # height, width, _ = image.shape
+        # vertex_colors = np.reshape(image, (-1, 3))
 
-        # Create array of pixel location values ([0, 0], [1, 0] ... [1920, 1080])
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        pixels = np.flip(np.column_stack(np.where(gray >= 0)), axis=1)
-        pixels = np.append(pixels, np.zeros((pixels.shape[0], 1)), axis=1)
+        # # Create array of pixel location values ([0, 0], [1, 0] ... [1920, 1080])
+        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # pixels = np.flip(np.column_stack(np.where(gray >= 0)), axis=1)
+        # pixels = np.append(pixels, np.zeros((pixels.shape[0], 1)), axis=1)
 
-        pixels[:, 0] = 2 * pixels[:, 0] / height - 1
-        pixels[:, 1] = -2 * pixels[:, 1] / height + 1
+        # pixels[:, 0] = 2 * pixels[:, 0] / height - 1
+        # pixels[:, 1] = -2 * pixels[:, 1] / height + 1
 
-        img = pyrender.Mesh.from_points(pixels, vertex_colors)
-        self.scene.add(img, name="image")
-
+        # img = pyrender.Mesh.from_points(pixels, vertex_colors)
+        # self.scene.add(img, name="image")
+        print(image.shape)
+        _ = render_image_plane(self.scene, image)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
         # create pose matrix
@@ -200,3 +217,9 @@ class Renderer:
 
         if self.requires_lock():
             self.viewer.render_lock.release()
+
+    def get_node(self, name):
+        for node in self.scene.get_nodes(name):
+            if node is not None:
+                return node
+        return None
