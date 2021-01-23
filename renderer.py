@@ -1,6 +1,7 @@
 import numpy as np
 from utils import render_model, render_points
 import pyrender
+from scipy.spatial.transform import Rotation as R
 
 
 class Renderer:
@@ -17,10 +18,12 @@ class Renderer:
         if camera is None:
             camera = pyrender.OrthographicCamera(ymag=1, xmag=1)
 
+       
+
         if camera_pose is None:
             camera_pose = np.eye(4)
-            camera_pose[:3, 3] = np.array([0, 0, -2])
-            camera_pose[0, 0] *= -1.0
+            camera_pose[:3, :3] = R.from_rotvec(np.pi/2 * np.array([0, 0, 0])).as_matrix()
+            camera_pose[:3, 3] = np.array([0, 0, 4])
 
         self.groups = {
             "body": [],
