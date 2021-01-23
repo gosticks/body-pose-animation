@@ -1,4 +1,5 @@
 import json
+from typing import Tuple
 from torch.utils.data import Dataset, DataLoader
 import torch
 import os
@@ -10,14 +11,12 @@ class SMPLyDataset(Dataset):
     def __init__(
             self,
             root_dir="./samples",
-            input_img_name_format="input_{id}_rendered.png",
-            input_openpose_name_format="input_{id}_rendered.png",
-            raw_img_format="frame-{id}.jpg"
+            raw_img_format="frame-{id}.jpg",
+            size: Tuple[int, int]=(1080, 1080)
     ):
         self.root_dir = root_dir
-        self.input_img_name_format = input_img_name_format
-        self.input_openpose_name_format = input_openpose_name_format
         self.raw_img_format = raw_img_format
+        self.size = size
 
     def __getitem__(self, index):
         name = str(index + 1).zfill(3) + ".json"
@@ -42,7 +41,7 @@ class SMPLyDataset(Dataset):
         # remap data to match expacted target format
         remapped_data = apply_mapping(data, mapping)
         # TODO: pass image resolution here
-        return openpose_to_opengl_coords(remapped_data, 1080, 1080)
+        return openpose_to_opengl_coords(remapped_data, self.size[0], self.size[1])
 
     def __len__(self):
         # TODO: something like this could work for now we simply use one item
