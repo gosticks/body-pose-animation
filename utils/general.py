@@ -14,6 +14,20 @@ def load_config():
     return config
 
 
+def get_torso(joints):
+    """get torso points from SMPL joint array
+
+    Args:
+        joints ([type]): SMPL joints array
+
+    Returns:
+        [type]: torso points array
+    """
+    cam_est_joints_names = ["hip-left", "hip-right",
+                            "shoulder-left", "shoulder-right"]
+    return get_named_joints(joints, cam_est_joints_names)
+
+
 def estimate_scale(joints, keypoints, pairs=[
     ("shoulder-right", "hip-right"),
     ("shoulder-left", "hip-left")
