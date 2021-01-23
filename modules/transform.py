@@ -66,5 +66,5 @@ class Transform(nn.Module):
         return transform
 
     def forward(self, joints):
-        R = self.get_transform_mat().squeeze()
+        R = self.get_transform_mat()
         return joints @ R + F.pad(self.translation, (0,1), value=1)

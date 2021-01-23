@@ -124,7 +124,7 @@ class CameraEstimate:
             init_points_3d = torch.from_numpy(init_points_3d)
 
             params = [translation, rotation]
-            opt = torch.optim.Adam(params, lr=0.1)
+            opt = torch.optim.Adam(params, lr=0.001)
 
             def C(params, X):
                 translation = params[0]
@@ -146,7 +146,7 @@ class CameraEstimate:
                 loss.float()
                 loss.backward()
                 opt.step()
-                stop = loss > 3e-4
+                stop = loss > 3e-2
                 current_pose = self.torch_params_to_pose(params)
                 current_pose = current_pose.detach().numpy()
                 self.renderer.scene.set_pose(self.transformed_points, current_pose)
