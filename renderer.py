@@ -1,5 +1,6 @@
 import numpy as np
-from utils import render_model, render_points
+from pyrender import scene
+from utils import render_model, render_points, render_camera, render_image_plane
 import pyrender
 from scipy.spatial.transform import Rotation as R
 import cv2
@@ -91,6 +92,17 @@ class Renderer:
 
         return node
 
+    def render_camera(self, radius=0.1, height=0.1 , color=[0.0, 0.0, 1.0, 1.0], name=None, group_name=None):
+
+        self.acquire()
+        node = render_camera(self.scene, radius=radius, height=height,color=color, name=name)
+        self.release()
+
+        self.add_to_group(group_name, node)
+
+        return node
+
+
     def render_keypoints(self, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0]):
         """Utility method to render joints, executes render_points with a fixed name
 
@@ -137,19 +149,21 @@ class Renderer:
 
     def render_image(self, image):
 
-        height, width, _ = image.shape
-        vertex_colors = np.reshape(image, (-1, 3))
+        # height, width, _ = image.shape
+        # vertex_colors = np.reshape(image, (-1, 3))
 
-        # Create array of pixel location values ([0, 0], [1, 0] ... [1920, 1080])
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        pixels = np.flip(np.column_stack(np.where(gray >= 0)), axis=1)
-        pixels = np.append(pixels, np.zeros((pixels.shape[0], 1)), axis=1)
+        # # Create array of pixel location values ([0, 0], [1, 0] ... [1920, 1080])
+        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # pixels = np.flip(np.column_stack(np.where(gray >= 0)), axis=1)
+        # pixels = np.append(pixels, np.zeros((pixels.shape[0], 1)), axis=1)
 
-        pixels[:, 0] = 2 * pixels[:, 0] / height - 1
-        pixels[:, 1] = -2 * pixels[:, 1] / height + 1
+        # pixels[:, 0] = 2 * pixels[:, 0] / height - 1
+        # pixels[:, 1] = -2 * pixels[:, 1] / height + 1
 
-        img = pyrender.Mesh.from_points(pixels, vertex_colors)
-        self.scene.add(img, name="image")
+        # img = pyrender.Mesh.from_points(pixels, vertex_colors)
+        # self.scene.add(img, name="image")
+        print(image.shape)
+        _ = render_image_plane(self.scene, image)
 
 
     def set_homog_group_transform(self, group_name, rotation, translation):
