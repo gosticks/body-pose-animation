@@ -59,6 +59,9 @@ class CameraEstimate:
         model_color = [0.3, 0.3, 0.3, 0.8]
         self.verts = self.renderer.render_model(self.model, self.output_model, model_color)
 
+        img = cv2.imread("samples/001.jpg")
+
+        self.renderer.render_image(img)
         self.renderer.start()
 
     def loss_model(self, params, points):
