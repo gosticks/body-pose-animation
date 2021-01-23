@@ -211,7 +211,7 @@ def estimate_scale(joints, keypoints, pairs=[
 
     return cam_fy * smpl_height / ops_height
 
-def estimate_focal_length():
+def estimate_focal_length(run_estimation: bool = False):
     """
     Estimate focal length by selecting a region of image whose real width is known.
     Executed once to compute a camera intrinsics matrix.
@@ -222,19 +222,23 @@ def estimate_focal_length():
 
     # TODO: adjust known distances with more precise values if this method works
 
-    image = cv2.imread('samples/001.jpg')
-    cv2.imshow("image", image)
-    marker = cv2.selectROI("image", image, fromCenter=False, showCrosshair=True)
+    if run_estimation:
+        image = cv2.imread('samples/001.jpg')
+        cv2.imshow("image", image)
+        marker = cv2.selectROI("image", image, fromCenter=False, showCrosshair=True)
 
-    # width of the selected region (object) in the image
-    region_width = marker[2]
+        # width of the selected region (object) in the image
+        region_width = marker[2]
 
-    # known real distance from the camera to the object
-    known_distance = 200
+        # known real distance from the camera to the object
+        known_distance = 200
 
-    # known real width of the object
-    known_width = 50
+        # known real width of the object
+        known_width = 50
 
-    focal_length = (region_width * known_distance) / known_width
-    print("Focal length:", focal_length)
+        focal_length = (region_width * known_distance) / known_width
+        print("Focal length:", focal_length)
+    else:
+        focal_length = 1000
+
     return focal_length
