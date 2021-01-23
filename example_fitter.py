@@ -12,7 +12,7 @@ from model import *
 import time
 # from renderer import *
 from dataset import *
-from utils import get_named_joints, estimate_depth
+from utils import get_named_joints, estimate_scale
 
 ascii_logo = """\
   /$$$$$$  /$$      /$$ /$$$$$$$  /$$   /$$     /$$
@@ -66,10 +66,10 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 # ---------------------------------
 cam_est_joints_names = ["hip-left", "hip-right",
                         "shoulder-left", "shoulder-right"]
-est_depth = estimate_depth(joints, keypoints)
+est_scale = estimate_scale(joints, keypoints)
 
-# apply depth to keypoints
-keypoints[:, 2] = -est_depth
+# apply scaling to keypoints
+keypoints = keypoints * est_scale
 
 init_joints = get_named_joints(joints, cam_est_joints_names)
 init_keypoints = get_named_joints(keypoints, cam_est_joints_names)
@@ -108,19 +108,26 @@ keyp_torso = torch.Tensor(init_keypoints, device=device)
 
 learning_rate = 1e-3
 trans = Transform(dtype, device)
-proj = CameraProjSimple(dtype, device, -est_depth)
+proj = CameraProjSimple(dtype, device, 1)
 optimizer = torch.optim.Adam(trans.parameters(), lr=learning_rate)
+loss_layer = torch.nn.MSELoss()
 
 for t in range(50000):
+    homog_coord = torch.ones(list(smpl_torso.shape)[:-1] + [1],
+                                 dtype=smpl_torso.dtype,
+                                 device=device)
+    # Convert the points to homogeneous coordinates
+    points_h = torch.cat([smpl_torso, homog_coord], dim=-1)
 
-    points = trans(smpl_torso)
+    points = trans(points_h)
     points_2d = proj(points)
 
     # point wise differences
     diff = points_2d - keyp_torso
 
     # Compute cost function
-    loss = torch.norm(diff)
+    # loss = torch.norm(diff)
+    loss = loss_layer(keyp_torso, points_2d)
     if t % 100 == 99:
         print(t, loss.item())
 
@@ -130,10 +137,10 @@ for t in range(50000):
 
     with torch.no_grad():
         R = trans.get_transform_mat().numpy()
-        translation = trans.translation.numpy()
+        translation = trans.translation.detach().numpy()
         # update model rendering
-        r.set_group_transform("body", R, translation)
+        r.set_homog_group_transform("body", R, translation)
 
 
-for t in range(50000):
-    print("do cost evaluation here")
+# for t in range(50000):
+#     print("do cost evaluation here")

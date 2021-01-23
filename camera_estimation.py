@@ -61,6 +61,9 @@ class CameraEstimate:
         model_color = [0.3, 0.3, 0.3, 0.8]
         self.verts = self.renderer.render_model(self.model, self.output_model, model_color)
 
+        img = cv2.imread("samples/001.jpg")
+
+        self.renderer.render_image(img)
         self.renderer.start()
 
     def loss_model(self, params, points):
@@ -147,7 +150,7 @@ class CameraEstimate:
             init_points_3d_prepared[ : , :3 ,:] = init_points_3d.unsqueeze(0).transpose(0,1).transpose(1,2)
 
             params = [translation, rotation]
-            opt = torch.optim.Adam(params, lr=0.1)
+            opt = torch.optim.Adam(params, lr=0.001)
 
             stop = True
             while stop:
@@ -158,7 +161,7 @@ class CameraEstimate:
                 loss.float()
                 loss.backward()
                 opt.step()
-                stop = loss > 3e-4
+                stop = loss > 3e-2
                 current_pose = self.torch_params_to_pose(params)
                 current_pose = current_pose.detach().numpy()
                 self.renderer.scene.set_pose(self.transformed_points, current_pose)
