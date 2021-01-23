@@ -102,7 +102,7 @@ def get_named_joint(joints: List, name: str, type="smpl"):
 
 
 def get_named_joints(joints: List, names: List[str], type="smpl"):
-    return [get_named_joint(joints, name, type=type) for name in names]
+    return np.array([get_named_joint(joints, name, type=type) for name in names]).squeeze()
 
 
 def apply_mapping(

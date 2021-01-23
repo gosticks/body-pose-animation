@@ -43,5 +43,4 @@ class SMPLyModel():
             return_verts=True,
             num_expression_coeffs=self.num_expression_coeffs,
             ext=self.ext)
-        print(self.model)
         return self.model

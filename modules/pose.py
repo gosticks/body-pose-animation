@@ -7,6 +7,7 @@ import torch.nn as nn
 import numpy as np
 from smplx import SMPL
 from tqdm import tqdm
+import torchgeometry as tgm
 
 
 class BodyPose(nn.Module):
@@ -68,7 +69,7 @@ def train_pose(
     keypoint_conf,
     camera,
     loss_layer=torch.nn.MSELoss(),
-    learning_rate=1e-4,
+    learning_rate=1e-2,
     device=torch.device('cpu'),
     dtype=torch.float32,
     renderer: Renderer = None,
@@ -77,37 +78,54 @@ def train_pose(
 ):
 
     # setup keypoint data
-    keypoints = torch.Tensor(keypoints, device=device)
-    keypoints_conf = torch.Tensor(keypoint_conf, device=device)
+    keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
+    keypoints_conf = torch.tensor(keypoint_conf).to(device)
+
+    print("setup body pose...")
 
     # setup torch modules
-    pose_layer = BodyPose(model, dtype=dtype, device=device)
+    pose_layer = BodyPose(model, dtype=dtype, device=device).to(device)
 
     if optimizer is None:
-        optimizer = torch.optim.Adam(pose_layer.parameters(), learning_rate)
+        optimizer = torch.optim.LBFGS(pose_layer.parameters(), learning_rate)
+        # optimizer = torch.optim.Adam(pose_layer.parameters(), learning_rate)
 
     pbar = tqdm(total=iterations)
 
-    for t in range(iterations):
+    def predict():
         # return joints based on current model state
         body_joints = pose_layer()
 
         # compute homogeneous coordinates and project them to 2D space
-        points = tgm.convert_points_to_homogeneous(body_joints)
-        points = camera(points)
-
         # TODO: create custom cost function
+        points = tgm.convert_points_to_homogeneous(body_joints)
+        points = camera(points).squeeze()
+        return loss_layer(points, keypoints)
+
+    def optim_closure():
+        if torch.is_grad_enabled():
+            optimizer.zero_grad()
+
+        loss = predict()
+
+        if loss.requires_grad:
+            loss.backward()
+        return loss
+
+    running_loss = 0.0
+
+    for t in range(iterations):
+        optimizer.step(optim_closure)
+
+        # LBFGS does not return the result, therefore we should rerun the model to get it
+        pred = predict()
+        loss = optim_closure()
 
         # compute loss
-        loss = loss_layer(points, keypoints)
+        cur_loss = loss.item()
 
-        if t % 100 == 99:
-            pbar.set_description("Error %f" % loss.item())
-            pbar.update(1)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        pbar.set_description("Error %f" % cur_loss)
+        pbar.update(1)
 
         if renderer is not None:
             renderer.render_model(model, pose_layer.cur_out, keep_pose=True)
