@@ -2,6 +2,7 @@
 # Initial camera estimation based on the torso keypoints obtained from OpenPose.
 
 from numpy.core.fromnumeric import transpose
+from torch.autograd import backward
 import yaml
 from dataset import *
 from model import *
@@ -11,6 +12,7 @@ import time
 from utils import *
 from renderer import *
 import torchgeometry as tgm
+from torchgeometry.core.conversions import rtvec_to_pose
 
 dtype = torch.float64
 
@@ -88,10 +90,29 @@ class CameraEstimate:
         return pose
 
     def torch_params_to_pose(self, params):
-        rotation = tgm.angle_axis_to_rotation_matrix(params[1])
-        rotation[:,:3, 3] = params[0]
-        return rotation[0,:,:]
+        transform = rtvec_to_pose(torch.cat((params[1],params[0])).view(-1).unsqueeze(0))
+        return transform[0,:,:]
 
+    def C(self, params, X):
+        Ext_mat = rtvec_to_pose(torch.cat((params[1],params[0])).view(-1).unsqueeze(0))
+        y_pred = Ext_mat @ X
+        y_pred  = y_pred.squeeze(2)
+        y_pred = y_pred[:,:3]
+        return y_pred
+
+    def transform_3d_to_2d(self, params, X):
+        camera_ext = rtvec_to_pose(torch.cat((params[1],params[0])).view(-1).unsqueeze(0)).squeeze(0)
+        camera_int = params[2]
+        result = camera_int[:3,:3] @ camera_ext[:3,:] @ X
+        result = result.squeeze(2)
+        denomiator = torch.zeros(4,3)
+        denomiator[0,:] = result[0,2]
+        denomiator[1,:] = result[1,2]
+        denomiator[2,:] = result[2,2]
+        denomiator[3,:] = result[3,2]
+        result = result/denomiator
+        result[:,2] = 0
+        return result
 
     def estimate_camera_pos(self):
         if self.toggle:
@@ -111,7 +132,7 @@ class CameraEstimate:
             transform_matrix = self.params_to_pose(res.x)
             return transform_matrix
         else:
-            translation = torch.zeros(3, requires_grad = True)
+            translation = torch.zeros(1, 3, requires_grad = True)
             rotation = torch.rand(1, 3, requires_grad = True)
             rotation.float()
             translation.float()
@@ -122,24 +143,15 @@ class CameraEstimate:
 
             init_points_2d = torch.from_numpy(init_points_2d)
             init_points_3d = torch.from_numpy(init_points_3d)
+            init_points_3d_prepared = torch.ones(4,4,1)
+            init_points_3d_prepared[ : , :3 ,:] = init_points_3d.unsqueeze(0).transpose(0,1).transpose(1,2)
 
             params = [translation, rotation]
             opt = torch.optim.Adam(params, lr=0.1)
 
-            def C(params, X):
-                translation = params[0]
-                rotation = tgm.angle_axis_to_rotation_matrix(params[1])
-                # y_pred = X @ rotation[:,:3,:3] + translation
-                y_pred = torch.zeros(4,3)
-                y_pred[0,:] = rotation[0,:3,:3] @ X[0,:] + translation
-                y_pred[1,:] = rotation[0,:3,:3] @ X[1,:] + translation
-                y_pred[2,:] = rotation[0,:3,:3] @ X[2,:] + translation
-                y_pred[3,:] = rotation[0,:3,:3] @ X[3,:] + translation
-                return y_pred
-                
             stop = True
             while stop:
-                y_pred = C(params, init_points_3d)
+                y_pred = self.C(params, init_points_3d_prepared)
                 loss = torch.nn.MSELoss()(init_points_2d.float(), y_pred.float() )
                 loss.requres_grad = True
                 opt.zero_grad()
@@ -152,7 +164,63 @@ class CameraEstimate:
                 self.renderer.scene.set_pose(self.transformed_points, current_pose)
                 self.renderer.scene.set_pose(self.verts, current_pose)
             transform_matrix = self.torch_params_to_pose(params)
+            current_pose = transform_matrix.detach().numpy()
+
+            camera_translation = torch.tensor([[0.5,0.5,5.0]], requires_grad=True)
+            # camera_translation[0,2] = 5 * torch.ones(1)
+            
+            camera_rotation = torch.rand(1,3, requires_grad=True)
+            camera_intrinsics = torch.zeros(4,4)
+            camera_intrinsics[0,0] = 5
+            camera_intrinsics[1,1] = 5
+            camera_intrinsics[2,2] = 1
+            camera_intrinsics[0,2] = 0.5
+            camera_intrinsics[1,2] = 0.5
+
+            params = [camera_translation, camera_rotation, camera_intrinsics]
+            
+            camera_extrinsics = self.torch_params_to_pose(params)
+
+            # camera = tgm.PinholeCamera(camera_intrinsics.unsqueeze(0), camera_extrinsics.unsqueeze(0), torch.ones(1), torch.ones(1))
+
+            init_points_3d_prepared = transform_matrix @ init_points_3d_prepared
+
+            # result = self.transform_3d_to_2d(params, transform_matrix @ init_points_3d_prepared)
+
+            opt2 = torch.optim.Adam(params, lr=0.1)
+
+            stop = True
+            first = True
+            while stop:
+                y_pred = self.transform_3d_to_2d(params, init_points_3d_prepared) 
+                loss = torch.nn.SmoothL1Loss()(init_points_2d[:,:2].float(), y_pred[:,:2].float() )
+                
+                loss.requres_grad = True
+                opt2.zero_grad()
+                if first:
+                    loss.backward(retain_graph=True)
+                else:
+                    loss.backward()
+                opt2.step()
+                stop = loss > 6e-5
+                color_3d = [0.1, 0.9, 0.1, 1.0]
+                # self.transformed_points_cam = self.renderer.render_points(camera_translation.detach().numpy(), color=color_3d)
+                # self.renderer.scene.set_pose(self.transformed_points_cam, current_pose)
+                print(camera_translation, camera_rotation, loss)
+
+                # [[ 0.3968,  0.5428, -5.6590]]
+                # [[ 0.4858,  0.4911, -5.0013]]
+
+            trans_mat = self.torch_params_to_pose(params)
+            print(torch.nn.MSELoss()(init_points_2d[:,:2].float(), y_pred[:,:2].float() ))
+            
+            
+            print(init_points_2d, self.transform_3d_to_2d(params, init_points_3d_prepared))
+
+
             return transform_matrix
+
+
     
             
 
