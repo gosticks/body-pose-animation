@@ -61,6 +61,9 @@ class CameraEstimate:
         model_color = [0.3, 0.3, 0.3, 0.8]
         self.verts = self.renderer.render_model(self.model, self.output_model, model_color)
 
+        camera_color = [0.0, 0.0, 0.1, 1.0]
+        self.camera_renderer = self.renderer.render_camera( color=camera_color)
+
         img = cv2.imread("samples/001.jpg")
 
         self.renderer.render_image(img)
@@ -172,7 +175,7 @@ class CameraEstimate:
             camera_translation = torch.tensor([[0.5,0.5,5.0]], requires_grad=True)
             # camera_translation[0,2] = 5 * torch.ones(1)
             
-            camera_rotation = torch.rand(1,3, requires_grad=True)
+            camera_rotation = torch.tensor([[1e-5,1e-5,1e-5]], requires_grad=True)
             camera_intrinsics = torch.zeros(4,4)
             camera_intrinsics[0,0] = 5
             camera_intrinsics[1,1] = 5
@@ -190,14 +193,13 @@ class CameraEstimate:
 
             # result = self.transform_3d_to_2d(params, transform_matrix @ init_points_3d_prepared)
 
-            opt2 = torch.optim.Adam(params, lr=1)
+            opt2 = torch.optim.Adam(params, lr=0.1)
 
             stop = True
             first = True
             while stop:
                 y_pred = self.transform_3d_to_2d(params, init_points_3d_prepared) 
-                loss = torch.nn.SmoothL1Loss()(init_points_2d[:,:2].float(), y_pred[:,:2].float() )
-                
+                loss = torch.nn.SmoothL1Loss()(init_points_2d.float(), y_pred.float())
                 loss.requres_grad = True
                 opt2.zero_grad()
                 if first:
@@ -206,20 +208,8 @@ class CameraEstimate:
                     loss.backward()
                 opt2.step()
                 stop = loss > 6e-5
-                color_3d = [0.1, 0.9, 0.1, 1.0]
-                # self.transformed_points_cam = self.renderer.render_points(camera_translation.detach().numpy(), color=color_3d)
-                # self.renderer.scene.set_pose(self.transformed_points_cam, current_pose)
+                self.renderer.scene.set_pose(self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
                 print(camera_translation, camera_rotation, loss)
-
-                # [[ 0.3968,  0.5428, -5.6590]]
-                # [[ 0.4858,  0.4911, -5.0013]]
-
-            trans_mat = self.torch_params_to_pose(params)
-            print(torch.nn.MSELoss()(init_points_2d[:,:2].float(), y_pred[:,:2].float() ))
-            
-            
-            print(init_points_2d, self.transform_3d_to_2d(params, init_points_3d_prepared))
-
 
             return transform_matrix
 
