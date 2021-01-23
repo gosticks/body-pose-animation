@@ -74,7 +74,7 @@ def train_pose(
     dtype=torch.float32,
     renderer: Renderer = None,
     optimizer=None,
-    iterations=4000
+    iterations=25
 ):
 
     # setup keypoint data
