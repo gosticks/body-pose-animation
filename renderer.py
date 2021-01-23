@@ -1,13 +1,16 @@
 import numpy as np
 from utils import render_model, render_points
 import pyrender
-
+from scipy.spatial.transform import Rotation as R
+import cv2
 
 class Renderer:
     def __init__(
         self,
         camera=None,
-        camera_pose=None
+        camera_pose=None,
+        width=1920,
+        height=1080
     ) -> None:
         super().__init__()
         self.run_in_thread = False
@@ -18,26 +21,32 @@ class Renderer:
             camera = pyrender.OrthographicCamera(ymag=1, xmag=1)
 
         if camera_pose is None:
+            # camera_pose = np.eye(4)
+            # camera_pose[:3, :3] = R.from_rotvec(np.pi/2 * np.array([0, 0, 0])).as_matrix()
+            # camera_pose[:3, 3] = np.array([0, 0, 4])
+
             camera_pose = np.eye(4)
-            camera_pose[:3, 3] = np.array([0, 0, -2])
-            camera_pose[0, 0] *= -1.0
+            camera_pose[:3, 3] = np.array([width / height - 1, 0, width / height])
 
         self.groups = {
             "body": [],
             "keypoints": []
         }
 
+        self.scene.add(pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0))
         self.scene.add(camera, pose=camera_pose)
 
     def start(self,
               use_reymond_lighting=True,
-              run_in_thread=True):
+              run_in_thread=True,
+              viewport_size=(1920, 1080)):
 
         self.run_in_thread = run_in_thread
         self.viewer = pyrender.Viewer(
             self.scene,
             run_in_thread=run_in_thread,
-            use_reymond_lighting=use_reymond_lighting
+            use_reymond_lighting=use_reymond_lighting,
+            viewport_size=tuple(d // 2 for d in viewport_size)
         )
 
     def stop(self):
@@ -125,6 +134,31 @@ class Renderer:
 
         self.add_to_group("body", node)
         return node
+
+    def render_image(self, image):
+
+        height, width, _ = image.shape
+        vertex_colors = np.reshape(image, (-1, 3))
+
+        # Create array of pixel location values ([0, 0], [1, 0] ... [1920, 1080])
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        pixels = np.flip(np.column_stack(np.where(gray >= 0)), axis=1)
+        pixels = np.append(pixels, np.zeros((pixels.shape[0], 1)), axis=1)
+
+        pixels[:, 0] = 2 * pixels[:, 0] / height - 1
+        pixels[:, 1] = -2 * pixels[:, 1] / height + 1
+
+        img = pyrender.Mesh.from_points(pixels, vertex_colors)
+        self.scene.add(img, name="image")
+
+
+    def set_homog_group_transform(self, group_name, rotation, translation):
+        # create pose matrix
+        pose = np.eye(4)
+        pose[:4, :4] = rotation
+        pose[:3, 3] = translation
+
+        self.set_group_pose(group_name, pose)
 
     def set_group_transform(self, group_name, rotation, translation):
         # create pose matrix

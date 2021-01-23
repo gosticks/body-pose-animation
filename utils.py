@@ -2,6 +2,7 @@ from typing import List, Set, Dict, Tuple, Optional
 import numpy as np
 import trimesh
 import pyrender
+import cv2
 
 openpose_to_smpl = np.array([
     8,  # hip - middle
@@ -176,11 +177,11 @@ def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=
     tfs = np.tile(np.eye(4), (len(points), 1, 1))
     tfs[:, :3, 3] = points
     pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
-    # return the render scene node
+    # return the render scsene node
     return scene.add(pcl, name=name)
 
 
-def estimate_depth(joints, keypoints, pairs=[
+def estimate_scale(joints, keypoints, pairs=[
     ("shoulder-right", "hip-right"),
     ("shoulder-left", "hip-left")
 ], cam_fy=1):
@@ -209,3 +210,35 @@ def estimate_depth(joints, keypoints, pairs=[
     ops_height = np.linalg.norm(ops_dists, axis=1).mean()
 
     return cam_fy * smpl_height / ops_height
+
+def estimate_focal_length(run_estimation: bool = False):
+    """
+    Estimate focal length by selecting a region of image whose real width is known.
+    Executed once to compute a camera intrinsics matrix.
+    For now, focal length = 1000
+
+    :return: focal_length
+    """
+
+    # TODO: adjust known distances with more precise values if this method works
+
+    if run_estimation:
+        image = cv2.imread('samples/001.jpg')
+        cv2.imshow("image", image)
+        marker = cv2.selectROI("image", image, fromCenter=False, showCrosshair=True)
+
+        # width of the selected region (object) in the image
+        region_width = marker[2]
+
+        # known real distance from the camera to the object
+        known_distance = 200
+
+        # known real width of the object
+        known_width = 50
+
+        focal_length = (region_width * known_distance) / known_width
+        print("Focal length:", focal_length)
+    else:
+        focal_length = 1000
+
+    return focal_length
