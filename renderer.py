@@ -126,6 +126,14 @@ class Renderer:
         self.add_to_group("body", node)
         return node
 
+    def set_homog_group_transform(self, group_name, rotation, translation):
+        # create pose matrix
+        pose = np.eye(4)
+        pose[:4, :4] = rotation
+        pose[:3, 3] = translation
+
+        self.set_group_pose(group_name, pose)
+
     def set_group_transform(self, group_name, rotation, translation):
         # create pose matrix
         pose = np.eye(4)
