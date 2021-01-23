@@ -110,17 +110,24 @@ learning_rate = 1e-3
 trans = Transform(dtype, device)
 proj = CameraProjSimple(dtype, device, -est_depth)
 optimizer = torch.optim.Adam(trans.parameters(), lr=learning_rate)
+loss_layer = torch.nn.MSELoss()
 
 for t in range(50000):
+    homog_coord = torch.ones(list(smpl_torso.shape)[:-1] + [1],
+                                 dtype=smpl_torso.dtype,
+                                 device=device)
+    # Convert the points to homogeneous coordinates
+    points_h = torch.cat([smpl_torso, homog_coord], dim=-1)
 
-    points = trans(smpl_torso)
+    points = trans(points_h)
     points_2d = proj(points)
 
     # point wise differences
     diff = points_2d - keyp_torso
 
     # Compute cost function
-    loss = torch.norm(diff)
+    # loss = torch.norm(diff)
+    loss = loss_layer(keyp_torso, points_2d)
     if t % 100 == 99:
         print(t, loss.item())
 
@@ -130,10 +137,10 @@ for t in range(50000):
 
     with torch.no_grad():
         R = trans.get_transform_mat().numpy()
-        translation = trans.translation.numpy()
+        translation = trans.translation.detach().numpy()
         # update model rendering
-        r.set_group_transform("body", R, translation)
+        r.set_homog_group_transform("body", R, translation)
 
 
-for t in range(50000):
-    print("do cost evaluation here")
+# for t in range(50000):
+#     print("do cost evaluation here")
