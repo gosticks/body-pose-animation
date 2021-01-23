@@ -150,7 +150,6 @@ def render_model(
     name=None,
     replace=False,
 ):
-    print(color)
     vertices = model_out.vertices.detach().cpu().numpy().squeeze()
 
     # set vertex colors, maybe use this to highlight accuracies
@@ -170,7 +169,6 @@ def render_model(
 
 
 def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=None):
-    print(color)
     sm = trimesh.creation.uv_sphere(radius=radius)
     sm.visual.vertex_colors = color
     tfs = np.tile(np.eye(4), (len(points), 1, 1))
