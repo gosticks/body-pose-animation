@@ -20,6 +20,7 @@ class CameraEstimate:
     def __init__(
             self,
             model: smplx.SMPL,
+            dataset,
             keypoints,
             renderer,
             dtype=torch.float32,
@@ -230,10 +231,10 @@ dataset = SMPLyDataset()
 model = SMPLyModel(conf['modelPath']).create_model()
 keypoints, conf = dataset[0]
 camera = TorchCameraEstimate(
-    model,
-    dataset,
-    Renderer(),
-    keypoints=keypoints,
+    model, 
+    dataset=dataset, 
+    keypoints=keypoints, 
+    renderer=Renderer(), 
     device=torch.device('cpu'),
     dtype=torch.float32
 )
