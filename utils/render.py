@@ -59,7 +59,7 @@ def render_image_plane(scene, image, name=None):
     tm.visual = mat
     tfs = np.eye(4)
     tfs[0, 0] = width / height
-    tfs[0, 3] = 0.75
+    tfs[0, 3] = width / height - 1
     material2 = pyrender.Material(name=name, emissiveTexture=image)
     m = pyrender.Mesh.from_trimesh(tm, poses=tfs)
     return scene.add(m, name=name)
