@@ -158,6 +158,7 @@ class TorchCameraEstimate(CameraEstimate):
         camera_intrinsics[2, 2] = 1
         camera_intrinsics[0, 2] = 0.5
         camera_intrinsics[1, 2] = 0.5
+        camera_intrinsics[3, 3] = 1
 
         params = [camera_translation, camera_rotation, camera_intrinsics]
 
@@ -199,7 +200,8 @@ class TorchCameraEstimate(CameraEstimate):
             current = per
             # print(camera_translation, camera_rotation, cam_tol/loss*100)
         pbar.close()
-        return transform_matrix
+        camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(params)
+        return camera_transform_matrix
 
     def transform_3d_to_2d(self, params, X):
         camera_ext = rtvec_to_pose(

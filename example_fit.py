@@ -87,12 +87,20 @@ device = torch.device('cpu')
 #     [-0.36793125, 0.01036147,  0.9297949,  0.52250534],
 #     [0, 0, 0, 1]
 # ]).to(device=device, dtype=dtype)
-camera_transformation = torch.tensor(
-    [[0.9993728,  -0.00577453,  0.03493736,  0.9268496],
-     [0.00514091,  0.9998211,   0.01819922, -0.07861858],
-        [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
-        [0,          0,          0,          1]]
-).to(device=device, dtype=dtype)
+# camera_transformation = torch.tensor(
+#     [[0.9993728,  -0.00577453,  0.03493736,  0.9268496],
+#      [0.00514091,  0.9998211,   0.01819922, -0.07861858],
+#         [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
+#         [0,          0,          0,          1]]
+# ).to(device=device, dtype=dtype)
+
+# camera_transformation = torch.tensor(
+#     [[ 4.9928,  0.0169,  0.5675,  0.3011],
+#         [-0.0289,  4.9951,  0.5460,  0.1138],
+#         [-0.0135, -0.0093,  0.9999,  5.4520],
+#         [ 0.0000,  0.0000,  0.0000,  1.0000]]
+# ).to(device=device, dtype=dtype)
+camera_transformation = torch.from_numpy(np.eye(4)).to(device=device, dtype=dtype)
 
 camera = SimpleCamera(dtype, device, z_scale=1,
                       transform_mat=camera_transformation)

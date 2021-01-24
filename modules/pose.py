@@ -130,5 +130,5 @@ def train_pose(
         if renderer is not None:
             renderer.render_model(model, pose_layer.cur_out, keep_pose=True)
 
-    print("Final result:", loss.item())
     pbar.close()
+    print("Final result:", loss.item())
