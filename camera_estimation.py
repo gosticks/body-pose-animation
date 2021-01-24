@@ -14,6 +14,7 @@ from renderer import *
 import torchgeometry as tgm
 from torchgeometry.core.conversions import rtvec_to_pose
 import cv2
+from tqdm import tqdm
 
 
 class CameraEstimate:
@@ -172,6 +173,10 @@ class TorchCameraEstimate(CameraEstimate):
 
         stop = True
         first = True
+        cam_tol = 6e-5
+        print("Estimating Camera transformations...")
+        pbar = tqdm(total=100)
+        current = 0
         while stop:
             y_pred = self.transform_3d_to_2d(
                 params, init_points_3d_prepared)
@@ -183,11 +188,17 @@ class TorchCameraEstimate(CameraEstimate):
             else:
                 loss.backward()
             opt2.step()
-            stop = loss > 6e-5
+            stop = loss > cam_tol
             self.renderer.scene.set_pose(
                 self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
-            print(camera_translation, camera_rotation, loss)
-
+            per = int((cam_tol/loss*100).item())
+            if per > 100:
+                pbar.update(100 - current)
+            else:
+                pbar.update(per - current)
+            current = per
+            # print(camera_translation, camera_rotation, cam_tol/loss*100)
+        pbar.close()
         return transform_matrix
 
     def transform_3d_to_2d(self, params, X):
