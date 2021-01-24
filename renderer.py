@@ -166,7 +166,6 @@ class Renderer:
 
         # img = pyrender.Mesh.from_points(pixels, vertex_colors)
         # self.scene.add(img, name="image")
-        print(image.shape)
         _ = render_image_plane(self.scene, image)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
