@@ -42,7 +42,6 @@ def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=
 
 
 def render_camera(scene, radius=0.5, height=0.5, color=[0.0, 0.0, 1.0, 1.0], name=None):
-
     sm = trimesh.creation.cone(radius, height, sections=None, transform=None)
     sm.visual.vertex_colors = color
     tfs = np.eye(4)
