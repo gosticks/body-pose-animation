@@ -33,6 +33,6 @@ class SimpleCamera(nn.Module):
             proj_points = points @ self.trans
         # scale = (points[:, :, 2] / self.z_scale)
         # print(points.shape, scale.shape)
-        proj_points = points[:, :, :2] * 1
+        proj_points = proj_points[:, :, :2] * 1
         proj_points = F.pad(proj_points, (0, 1, 0, 0), value=0)
         return proj_points
