@@ -70,7 +70,7 @@ def train_pose(
     keypoint_conf,
     camera: SimpleCamera,
     loss_layer=torch.nn.MSELoss(),
-    learning_rate=1e-2,
+    learning_rate=1e-3,
     device=torch.device('cpu'),
     dtype=torch.float32,
     renderer: Renderer = None,
@@ -89,7 +89,7 @@ def train_pose(
 
     if optimizer is None:
         optimizer = torch.optim.LBFGS([pose_layer.pose], learning_rate)
-        # optimizer = torch.optim.Adam(pose_layer.parameters(), learning_rate)
+        #optimizer = torch.optim.Adam(pose_layer.parameters(), learning_rate)
 
     pbar = tqdm(total=iterations)
 
@@ -99,8 +99,10 @@ def train_pose(
 
         # compute homogeneous coordinates and project them to 2D space
         # TODO: create custom cost function
+
         points = tgm.convert_points_to_homogeneous(body_joints)
         points = camera(points).squeeze()
+
         return loss_layer(points, keypoints)
 
     def optim_closure():
