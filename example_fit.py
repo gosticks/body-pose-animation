@@ -29,13 +29,37 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
+sample_index = 2
+
+sample_transforms = [
+    [
+        [0.929741,   -0.01139284,  0.36803687, 0.68193704],
+        [0.01440641,  0.999881,   -0.00544171, 0.35154277],
+        [-0.36793125, 0.01036147,  0.9297949,  0.52250534],
+        [0, 0, 0, 1]
+    ],
+    [
+        [0.9993728,  -0.00577453,  0.03493736,  0.9268496],
+        [0.00514091,  0.9998211,   0.01819922, -0.07861858],
+        [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
+        [0,          0,          0,          1]
+    ],
+    [
+        [4.9928,  0.0169,  0.5675,  0.3011],
+        [-0.0289,  4.9951,  0.5460,  0.1138],
+        [-0.0135, -0.0093,  0.9999,  5.4520],
+        [0.0000,  0.0000,  0.0000,  1.0000]
+    ]
+]
+
+
 # ------------------------------
 # Load data
 # ------------------------------
 l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 keypoints, conf = dataset[2]
-img = cv2.imread("samples/003.png")
+img_path = "./samples/" + str(sample_index + 1).zfill(3) + ".png"
 
 # ---------------------------------
 # Generate model and get joints
@@ -61,7 +85,7 @@ r = Renderer()
 r.render_model(model, model_out)
 r.render_joints(joints)
 r.render_keypoints(keypoints)
-r.render_image(img)
+r.render_image_from_path(img_path)
 
 # render openpose torso markers
 r.render_points(
@@ -83,28 +107,8 @@ r.start()
 
 dtype = torch.float
 device = torch.device('cpu')
-# torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-
-# camera_transformation = torch.tensor([
-#     [0.929741,   -0.01139284,  0.36803687, 0.68193704],
-#     [0.01440641,  0.999881,   -0.00544171, 0.35154277],
-#     [-0.36793125, 0.01036147,  0.9297949,  0.52250534],
-#     [0, 0, 0, 1]
-# ]).to(device=device, dtype=dtype)
 camera_transformation = torch.tensor(
-    [[0.9993728,  -0.00577453,  0.03493736,  0.9268496],
-     [0.00514091,  0.9998211,   0.01819922, -0.07861858],
-        [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
-        [0,          0,          0,          1]]
-).to(device=device, dtype=dtype)
-
-# camera_transformation = torch.tensor(
-#     [[ 4.9928,  0.0169,  0.5675,  0.3011],
-#         [-0.0289,  4.9951,  0.5460,  0.1138],
-#         [-0.0135, -0.0093,  0.9999,  5.4520],
-#         [ 0.0000,  0.0000,  0.0000,  1.0000]]
-# ).to(device=device, dtype=dtype)
-#camera_transformation = torch.from_numpy(np.eye(4)).to(device=device, dtype=dtype)
+    sample_transforms[1]).to(device=device, dtype=dtype)
 
 camera = SimpleCamera(dtype, device, z_scale=1,
                       transform_mat=camera_transformation)
