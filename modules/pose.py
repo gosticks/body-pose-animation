@@ -119,8 +119,8 @@ def train_pose(
         pred = predict()
         loss = optim_closure()
 
-        if t % 5 == 0:
-            time.sleep(5)
+        # if t % 5 == 0:
+        #     time.sleep(5)
 
         # compute loss
         cur_loss = loss.item()
