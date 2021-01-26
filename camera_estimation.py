@@ -49,13 +49,13 @@ class CameraEstimate:
 
         color_3d = [0.1, 0.9, 0.1, 1.0]
         self.transformed_points = self.renderer.render_points(
-            smpl_points, color=color_3d)
+            smpl_points, color=color_3d, name="smpl_torso", group_name="body")
 
         color_2d = [0.9, 0.1, 0.1, 1.0]
         self.renderer.render_keypoints(keypoints, color=color_2d)
 
         model_color = [0.3, 0.3, 0.3, 0.8]
-        self.verts = self.renderer.render_model(
+        self.renderer.render_model(
             self.model, self.output_model, model_color)
 
         camera_color = [0.0, 0.0, 0.1, 1.0]
@@ -77,8 +77,8 @@ class CameraEstimate:
         current_pose = self.params_to_pose(params)
 
         # TODO: use renderer.py methods
-        self.renderer.scene.set_pose(self.transformed_points, current_pose)
-        self.renderer.scene.set_pose(self.verts, current_pose)
+        self.renderer.scene.set_group_pose("body", current_pose)
+        # self.renderer.scene.set_pose(self.verts, current_pose)
 
     def params_to_pose(self, params):
         pose = np.eye(4)
@@ -118,30 +118,36 @@ class TorchCameraEstimate(CameraEstimate):
 
         self.visualize_mesh(init_points_2d, init_points_3d)
 
-        init_points_2d = torch.from_numpy(init_points_2d)
-        init_points_3d = torch.from_numpy(init_points_3d)
-        init_points_3d_prepared = torch.ones(4, 4, 1)
+        init_points_2d = torch.from_numpy(init_points_2d).to(
+            device=self.device, dtype=self.dtype)
+        init_points_3d = torch.from_numpy(init_points_3d).to(
+            device=self.device, dtype=self.dtype)
+        init_points_3d_prepared = torch.ones(4, 4, 1).to(
+            device=self.device, dtype=self.dtype)
         init_points_3d_prepared[:, :3, :] = init_points_3d.unsqueeze(
             0).transpose(0, 1).transpose(1, 2)
 
         params = [translation, rotation]
         opt = torch.optim.Adam(params, lr=0.1)
 
-        stop = True
-        while stop:
+        loss_layer = torch.nn.MSELoss()
+
+        loss = 10000
+
+        while loss > 3e-4:
             y_pred = self.C(params, init_points_3d_prepared)
-            loss = torch.nn.MSELoss()(init_points_2d.float(), y_pred.float())
-            loss.requres_grad = True
-            opt.zero_grad()
-            loss.float()
-            loss.backward()
-            opt.step()
-            stop = loss > 3e-4
-            current_pose = self.torch_params_to_pose(params)
-            current_pose = current_pose.detach().numpy()
-            self.renderer.scene.set_pose(
-                self.transformed_points, current_pose)
-            self.renderer.scene.set_pose(self.verts, current_pose)
+            loss = loss_layer(init_points_2d, y_pred)
+
+            with torch.no_grad():
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+                current_pose = self.torch_params_to_pose(params)
+
+                current_pose = current_pose.detach().numpy()
+
+                self.renderer.set_group_pose("body", current_pose)
+
         transform_matrix = self.torch_params_to_pose(params)
         current_pose = transform_matrix.detach().numpy()
 
@@ -200,7 +206,8 @@ class TorchCameraEstimate(CameraEstimate):
             current = per
             # print(camera_translation, camera_rotation, cam_tol/loss*100)
         pbar.close()
-        camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(params)
+        camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(
+            params)
         return camera_transform_matrix
 
     def transform_3d_to_2d(self, params, X):
@@ -244,10 +251,10 @@ dataset = SMPLyDataset()
 model = SMPLyModel(conf['modelPath']).create_model()
 keypoints, conf = dataset[0]
 camera = TorchCameraEstimate(
-    model, 
-    dataset=dataset, 
-    keypoints=keypoints, 
-    renderer=Renderer(), 
+    model,
+    dataset=dataset,
+    keypoints=keypoints,
+    renderer=Renderer(),
     device=torch.device('cpu'),
     dtype=torch.float32
 )
