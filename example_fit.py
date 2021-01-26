@@ -89,20 +89,20 @@ init_keypoints = get_torso(keypoints)
 # setup renderer
 r = Renderer()
 r.render_model(model, model_out)
-r.render_joints(joints)
-r.render_keypoints(keypoints)
+# r.render_joints(joints)
+# r.render_keypoints(keypoints)
 r.render_image_from_path(img_path)
 
 # render openpose torso markers
-r.render_points(
+r.render_keypoints(
     init_keypoints,
     radius=0.01,
-    color=[1.0, 0.0, 1.0, 1.0], name="ops_torso", group_name="keypoints")
+    color=[1.0, 0.0, 1.0, 1.0])
 
 r.render_points(
     init_joints,
     radius=0.01,
-    color=[0.0, 0.7, 0.0, 1.0], name="body_torso", group_name="body")
+    color=[0.0, 0.1, 0.0, 1.0])
 
 keypoints[:, 2] = 0
 init_keypoints = get_torso(keypoints)

@@ -1,3 +1,4 @@
+from modules.camera import SimpleCamera
 from renderer import Renderer
 from utils.mapping import get_mapping_arr
 import time
@@ -67,7 +68,7 @@ def train_pose(
     model: SMPL,
     keypoints,
     keypoint_conf,
-    camera,
+    camera: SimpleCamera,
     loss_layer=torch.nn.MSELoss(),
     learning_rate=1e-2,
     device=torch.device('cpu'),
@@ -130,6 +131,8 @@ def train_pose(
 
         if renderer is not None:
             renderer.render_model(model, pose_layer.cur_out, keep_pose=True)
+            R = camera.trans.numpy().squeeze()
+            renderer.set_group_pose("body", R)
 
     pbar.close()
     print("Final result:", loss.item())

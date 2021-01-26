@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 from pyrender import scene
+from smplx import SMPLLayer
+from smplx.body_models import SMPL
 from utils.render import render_model, render_points, render_camera, render_image_plane
 import pyrender
 from scipy.spatial.transform import Rotation as R
@@ -65,10 +67,20 @@ class Renderer:
         if self.requires_lock():
             self.viewer.render_lock.acquire()
 
-    def remove_from_group(self, group_name, name):
+    def remove_from_group(self, group_name, name, remove_node=True):
         group = self.groups[group_name]
         if group is None:
             return
+
+        if remove_node:
+            self.acquire()
+            nodes = self.scene.get_nodes(name=name)
+            if len(nodes) > 0:
+                node = nodes.pop()
+                if node is not None:
+                    self.scene.remove_node(node)
+            self.release()
+        # filter group array
         self.groups[group_name] = [node for node in group if node.name != name]
 
     def add_to_group(self, group_name, node):
@@ -128,11 +140,12 @@ class Renderer:
 
     def render_model(
             self,
-            model,
-            model_out,
+            model: SMPLLayer,
+            model_out: SMPL,
             color=[1.0, 0.3, 0.3, 0.8],
             replace=True,
-            keep_pose=False,
+            keep_pose=True,
+            render_joints=True,
     ):
         if model_out is None:
             model_out = model()
@@ -141,6 +154,8 @@ class Renderer:
             node = self.get_node("body_mesh")
             if node is not None:
                 original_pose = node.pose
+
+        self.render_joints(model_out.joints.detach().cpu().numpy().squeeze())
 
         self.remove_from_group("body", "body_mesh")
 
