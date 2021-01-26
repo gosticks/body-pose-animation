@@ -58,7 +58,7 @@ sample_transforms = [
 # ------------------------------
 l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
-keypoints, conf = dataset[2]
+keypoints, conf = dataset[sample_index]
 img_path = "./samples/" + str(sample_index + 1).zfill(3) + ".png"
 
 # ---------------------------------
