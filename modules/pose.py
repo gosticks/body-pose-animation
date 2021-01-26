@@ -87,7 +87,7 @@ def train_pose(
     pose_layer = BodyPose(model, dtype=dtype, device=device).to(device)
 
     if optimizer is None:
-        optimizer = torch.optim.LBFGS(pose_layer.parameters(), learning_rate)
+        optimizer = torch.optim.LBFGS([pose_layer.pose], learning_rate)
         # optimizer = torch.optim.Adam(pose_layer.parameters(), learning_rate)
 
     pbar = tqdm(total=iterations)
