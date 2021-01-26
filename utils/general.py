@@ -3,7 +3,7 @@ from utils.mapping import get_named_joints
 import numpy as np
 import cv2
 import yaml
-
+import os.path
 
 def load_config():
     with open('./config.yaml') as file:
@@ -31,7 +31,7 @@ def get_torso(joints):
 def estimate_scale(joints, keypoints, pairs=[
     ("shoulder-right", "hip-right"),
     ("shoulder-left", "hip-left")
-], cam_fy=1):
+], cam_fy=850):
     """estimate image depth based on the height changes due to perspective.
     This method only provides a rough estimate by computing shoulder to hip distances
     between SMPL joints and OpenPose keypoints.
@@ -39,7 +39,7 @@ def estimate_scale(joints, keypoints, pairs=[
     Args:
         joints ([type]): List of all SMPL joints
         keypoints ([type]): List of all OpenPose keypoints
-        cam_fy (int, optional): Camera Y focal length. Defaults to 1.
+        cam_fy (int, optional): Camera Y focal length. Defaults to 850.
     """
 
     # store distance vectors
@@ -53,17 +53,17 @@ def estimate_scale(joints, keypoints, pairs=[
         smpl_dists.append(smpl_joints[0] - smpl_joints[1])
         ops_dists.append(ops_keyp[0] - ops_keyp[1])
 
-    smpl_height = np.linalg.norm(smpl_dists, axis=1).mean()
-    ops_height = np.linalg.norm(ops_dists, axis=1).mean()
+    smpl_height = np.linalg.norm(smpl_dists, axis=0).mean()
+    ops_height = np.linalg.norm(ops_dists, axis=0).mean()
 
-    return cam_fy * smpl_height / ops_height
+    return cam_fy / 1080 * smpl_height / ops_height
 
 
 def estimate_focal_length(run_estimation: bool = False):
     """
     Estimate focal length by selecting a region of image whose real width is known.
     Executed once to compute a camera intrinsics matrix.
-    For now, focal length = 1000
+    For now, focal length = 850
 
     :return: focal_length
     """
@@ -71,7 +71,7 @@ def estimate_focal_length(run_estimation: bool = False):
     # TODO: adjust known distances with more precise values if this method works
 
     if run_estimation:
-        image = cv2.imread('samples/001.jpg')
+        image = cv2.imread(os.path.dirname(__file__) + '/../samples/003.png')
         cv2.imshow("image", image)
         marker = cv2.selectROI(
             "image", image, fromCenter=False, showCrosshair=True)
@@ -88,6 +88,6 @@ def estimate_focal_length(run_estimation: bool = False):
         focal_length = (region_width * known_distance) / known_width
         print("Focal length:", focal_length)
     else:
-        focal_length = 1000
+        focal_length = 850
 
     return focal_length
