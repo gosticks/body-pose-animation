@@ -155,7 +155,7 @@ class Renderer:
     def render_image_from_path(self, path):
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.render_image_from_path(self, img)
+        self.render_image_from_path(img)
 
     def render_image(self, image):
 
