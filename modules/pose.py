@@ -1,6 +1,6 @@
 from renderer import Renderer
 from utils.mapping import get_mapping_arr
-from smplx.body_models import SMPLX
+import time
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -112,14 +112,15 @@ def train_pose(
             loss.backward()
         return loss
 
-    running_loss = 0.0
-
     for t in range(iterations):
         optimizer.step(optim_closure)
 
         # LBFGS does not return the result, therefore we should rerun the model to get it
         pred = predict()
         loss = optim_closure()
+
+        if t % 5 == 0:
+            time.sleep(5)
 
         # compute loss
         cur_loss = loss.item()
