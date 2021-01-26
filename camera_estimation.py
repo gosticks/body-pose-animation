@@ -24,6 +24,7 @@ class CameraEstimate:
             dataset,
             keypoints,
             renderer,
+            image_path=None,
             dtype=torch.float32,
             device=torch.device("cpu")):
         self.model = model
@@ -32,6 +33,7 @@ class CameraEstimate:
         self.renderer = renderer
         self.dtype = dtype
         self.device = device
+        self.image_path = image_path
         self.keypoints = keypoints
 
     def get_torso_keypoints(self):
@@ -61,9 +63,8 @@ class CameraEstimate:
         camera_color = [0.0, 0.0, 0.1, 1.0]
         self.camera_renderer = self.renderer.render_camera(color=camera_color)
 
-        img = cv2.imread("samples/001.jpg")
-
-        self.renderer.render_image(img)
+        if self.image_path is not None:
+            self.renderer.render_image_from_path(self.image_path)
         self.renderer.start()
 
     def sum_of_squares(self, params, X, Y):
@@ -208,7 +209,7 @@ class TorchCameraEstimate(CameraEstimate):
         pbar.close()
         camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(
             params)
-        return camera_transform_matrix
+        return camera_transform_matrix, transform_matrix
 
     def transform_3d_to_2d(self, params, X):
         camera_ext = rtvec_to_pose(
@@ -246,17 +247,23 @@ class TorchCameraEstimate(CameraEstimate):
         return y_pred
 
 
+sample_index = 0
+
 conf = load_config()
 dataset = SMPLyDataset()
 model = SMPLyModel(conf['modelPath']).create_model()
-keypoints, conf = dataset[0]
+keypoints, conf = dataset[sample_index]
 camera = TorchCameraEstimate(
     model,
     dataset=dataset,
     keypoints=keypoints,
     renderer=Renderer(),
     device=torch.device('cpu'),
-    dtype=torch.float32
+    dtype=torch.float32,
+    image_path="./samples/" + str(sample_index + 1).zfill(3) + ".png"
+
 )
-pose = camera.estimate_camera_pos()
+pose, transform = camera.estimate_camera_pos()
 print("Pose matrix: \n", pose)
+
+print("Transform matrix: \n", transform)
