@@ -29,7 +29,7 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
-sample_index = 2
+sample_index = 1
 
 sample_transforms = [
     [
