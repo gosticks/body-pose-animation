@@ -29,7 +29,7 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
-sample_index = 1
+sample_index = 2
 
 sample_transforms = [
     [
@@ -37,6 +37,12 @@ sample_transforms = [
         [0.01440641,  0.999881,   -0.00544171, 0.35154277],
         [-0.36793125, 0.01036147,  0.9297949,  0.52250534],
         [0, 0, 0, 1]
+    ],
+    [
+        [0.9993728,  -0.00577453,  0.03493736,  0.9268496],
+        [0.00514091,  0.9998211,   0.01819922, -0.07861858],
+        [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
+        [0,          0,          0,          1]
     ],
     [
         [0.9993728,  -0.00577453,  0.03493736,  0.9268496],
@@ -108,7 +114,7 @@ r.start()
 dtype = torch.float
 device = torch.device('cpu')
 camera_transformation = torch.tensor(
-    sample_transforms[1]).to(device=device, dtype=dtype)
+    sample_transforms[sample_index]).to(device=device, dtype=dtype)
 
 camera = SimpleCamera(dtype, device, z_scale=1,
                       transform_mat=camera_transformation)
