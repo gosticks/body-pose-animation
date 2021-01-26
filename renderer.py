@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 from pyrender import scene
 from utils.render import render_model, render_points, render_camera, render_image_plane
@@ -150,6 +151,11 @@ class Renderer:
 
         self.add_to_group("body", node)
         return node
+
+    def render_image_from_path(self, path):
+        img = cv2.imread(path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.render_image_from_path(self, img)
 
     def render_image(self, image):
 
