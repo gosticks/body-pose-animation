@@ -29,7 +29,7 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
-sample_index = 2
+sample_index = 1
 
 sample_transforms = [
     [
@@ -39,16 +39,16 @@ sample_transforms = [
         [0, 0, 0, 1]
     ],
     [
-        [0.9993728,  -0.00577453,  0.03493736,  0.9268496],
-        [0.00514091,  0.9998211,   0.01819922, -0.07861858],
-        [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
-        [0,          0,          0,          1]
+        [9.9901e-01, -3.7266e-02, -2.4385e-02,  7.6932e-01],
+        [3.5270e-02,  9.9635e-01, -7.7715e-02,  3.0069e-01],
+        [2.7193e-02,  7.6778e-02,  9.9668e-01, -7.6563e-04],
+        [0.0000e+00,  0.0000e+00,  0.0000e+00,  1.0000e+00]
     ],
     [
-        [0.9993728,  -0.00577453,  0.03493736,  0.9268496],
-        [0.00514091,  0.9998211,   0.01819922, -0.07861858],
-        [-0.0350362,  -0.0180082,   0.99922377,  0.00451744],
-        [0,          0,          0,          1]
+        [9.99947985e-01, - 7.05885983e-03, -7.36209961e-03,  8.18256989e-01],
+        [7.58265353e-03,  9.97249329e-01,  7.37311259e-02, - 6.41522022e-02],
+        [6.82139121e-03, - 7.37831150e-02,  9.97250982e-01,  6.04774204e-04],
+        [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
     ],
     [
         [4.9928,  0.0169,  0.5675,  0.3011],
@@ -66,7 +66,7 @@ l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 keypoints, conf = dataset[sample_index]
 img_path = "./samples/" + str(sample_index + 1).zfill(3) + ".png"
-
+print(img_path)
 # ---------------------------------
 # Generate model and get joints
 # ---------------------------------
@@ -85,27 +85,23 @@ keypoints = keypoints * est_scale
 init_joints = get_torso(joints)
 init_keypoints = get_torso(keypoints)
 
-
 # setup renderer
 r = Renderer()
 r.render_model(model, model_out)
-r.render_joints(joints)
-r.render_keypoints(keypoints)
-r.render_image_from_path(img_path)
+# r.render_joints(joints)
+# r.render_keypoints(keypoints)
+# r.render_image_from_path(img_path)
 
 # render openpose torso markers
-r.render_points(
+r.render_keypoints(
     init_keypoints,
     radius=0.01,
-    color=[1.0, 0.0, 1.0, 1.0], name="ops_torso", group_name="keypoints")
+    color=[1.0, 0.0, 1.0, 1.0])
 
 r.render_points(
     init_joints,
     radius=0.01,
-    color=[0.0, 0.7, 0.0, 1.0], name="body_torso", group_name="body")
-
-keypoints[:, 2] = 0
-init_keypoints = get_torso(keypoints)
+    color=[0.0, 0.1, 0.0, 1.0], name="torso", group_name="body")
 
 # start renderer
 r.start()
@@ -126,11 +122,12 @@ print("using device", device)
 
 train_pose(
     model,
+    learning_rate=1e-2,
     keypoints=keypoints,
     keypoint_conf=conf,
     # TODO: use camera_estimation camera here
     camera=camera,
     renderer=r,
     device=device,
-    iterations=25
+    iterations=30
 )

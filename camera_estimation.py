@@ -24,6 +24,7 @@ class CameraEstimate:
             dataset,
             keypoints,
             renderer,
+            image_path=None,
             dtype=torch.float32,
             device=torch.device("cpu")):
         self.model = model
@@ -32,6 +33,7 @@ class CameraEstimate:
         self.renderer = renderer
         self.dtype = dtype
         self.device = device
+        self.image_path = image_path
         self.keypoints = keypoints
 
     def get_torso_keypoints(self):
@@ -49,21 +51,20 @@ class CameraEstimate:
 
         color_3d = [0.1, 0.9, 0.1, 1.0]
         self.transformed_points = self.renderer.render_points(
-            smpl_points, color=color_3d)
+            smpl_points, color=color_3d, name="smpl_torso", group_name="body")
 
         color_2d = [0.9, 0.1, 0.1, 1.0]
         self.renderer.render_keypoints(keypoints, color=color_2d)
 
         model_color = [0.3, 0.3, 0.3, 0.8]
-        self.verts = self.renderer.render_model(
+        self.renderer.render_model(
             self.model, self.output_model, model_color)
 
         camera_color = [0.0, 0.0, 0.1, 1.0]
         self.camera_renderer = self.renderer.render_camera(color=camera_color)
 
-        img = cv2.imread("samples/001.jpg")
-
-        self.renderer.render_image(img)
+        if self.image_path is not None:
+            self.renderer.render_image_from_path(self.image_path)
         self.renderer.start()
 
     def sum_of_squares(self, params, X, Y):
@@ -77,8 +78,8 @@ class CameraEstimate:
         current_pose = self.params_to_pose(params)
 
         # TODO: use renderer.py methods
-        self.renderer.scene.set_pose(self.transformed_points, current_pose)
-        self.renderer.scene.set_pose(self.verts, current_pose)
+        self.renderer.scene.set_group_pose("body", current_pose)
+        # self.renderer.scene.set_pose(self.verts, current_pose)
 
     def params_to_pose(self, params):
         pose = np.eye(4)
@@ -106,7 +107,8 @@ class CameraEstimate:
 
 
 class TorchCameraEstimate(CameraEstimate):
-    def estimate_camera_pos(self):
+    def estimate_camera_pos(self): 
+        self.memory = None
         translation = torch.zeros(
             1, 3, requires_grad=True, dtype=self.dtype, device=self.device)
         rotation = torch.rand(1, 3, requires_grad=True,
@@ -118,30 +120,51 @@ class TorchCameraEstimate(CameraEstimate):
 
         self.visualize_mesh(init_points_2d, init_points_3d)
 
-        init_points_2d = torch.from_numpy(init_points_2d)
-        init_points_3d = torch.from_numpy(init_points_3d)
-        init_points_3d_prepared = torch.ones(4, 4, 1)
+        init_points_2d = torch.from_numpy(init_points_2d).to(
+            device=self.device, dtype=self.dtype)
+        init_points_3d = torch.from_numpy(init_points_3d).to(
+            device=self.device, dtype=self.dtype)
+        init_points_3d_prepared = torch.ones(4, 4, 1).to(
+            device=self.device, dtype=self.dtype)
         init_points_3d_prepared[:, :3, :] = init_points_3d.unsqueeze(
             0).transpose(0, 1).transpose(1, 2)
 
         params = [translation, rotation]
         opt = torch.optim.Adam(params, lr=0.1)
 
+        loss_layer = torch.nn.MSELoss()
+
         stop = True
+        tol = 3e-4
+        print("Estimating Initial transform...")
+        pbar = tqdm(total=100)
+        current = 0
         while stop:
             y_pred = self.C(params, init_points_3d_prepared)
-            loss = torch.nn.MSELoss()(init_points_2d.float(), y_pred.float())
-            loss.requres_grad = True
-            opt.zero_grad()
-            loss.float()
-            loss.backward()
-            opt.step()
-            stop = loss > 3e-4
-            current_pose = self.torch_params_to_pose(params)
-            current_pose = current_pose.detach().numpy()
-            self.renderer.scene.set_pose(
-                self.transformed_points, current_pose)
-            self.renderer.scene.set_pose(self.verts, current_pose)
+            loss = loss_layer(init_points_2d, y_pred)
+
+            with torch.no_grad():
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+                current_pose = self.torch_params_to_pose(params)
+
+                current_pose = current_pose.detach().numpy()
+
+                self.renderer.set_group_pose("body", current_pose)
+                per = int((tol/loss*100).item())
+                if per > 100:
+                    pbar.update(abs(100 - current))
+                    current = 100
+                else:
+                    pbar.update(per - current)
+                    current = per
+                stop = loss > tol
+                if stop == True:
+                    stop = self.patience_module(loss, 5)
+        pbar.update(abs(100 - current))
+        pbar.close()
+        self.memory = None
         transform_matrix = self.torch_params_to_pose(params)
         current_pose = transform_matrix.detach().numpy()
 
@@ -189,7 +212,6 @@ class TorchCameraEstimate(CameraEstimate):
             else:
                 loss.backward()
             opt2.step()
-            stop = loss > cam_tol
             self.renderer.scene.set_pose(
                 self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
             per = int((cam_tol/loss*100).item())
@@ -198,10 +220,14 @@ class TorchCameraEstimate(CameraEstimate):
             else:
                 pbar.update(per - current)
             current = per
-            # print(camera_translation, camera_rotation, cam_tol/loss*100)
+            stop = loss > cam_tol
+            if stop == True:
+                stop = self.patience_module(loss, 5)
+        pbar.update(100 - current)
         pbar.close()
-        camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(params)
-        return camera_transform_matrix
+        camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(
+            params)
+        return camera_transform_matrix, transform_matrix
 
     def transform_3d_to_2d(self, params, X):
         camera_ext = rtvec_to_pose(
@@ -238,18 +264,41 @@ class TorchCameraEstimate(CameraEstimate):
         y_pred = points @ rotation.as_matrix() + translation
         return y_pred
 
+    def patience_module(self, variable, counter: int):
+        if self.memory == None:
+            self.memory=torch.clone(variable)
+            self.patience_count = 0
+            return True
+        if self.patience_count >= counter:
+            self.memory == None
+            self.patience_count = 0
+            return False
+        else:
+            if torch.isclose(variable, self.memory).item():
+                self.patience_count += 1
+                return True
+            else:
+                self.patience_count = 0
+                self.memory=torch.clone(variable)
+                return True
+
+sample_index = 0
 
 conf = load_config()
 dataset = SMPLyDataset()
 model = SMPLyModel(conf['modelPath']).create_model()
-keypoints, conf = dataset[0]
+keypoints, conf = dataset[sample_index]
 camera = TorchCameraEstimate(
-    model, 
-    dataset=dataset, 
-    keypoints=keypoints, 
-    renderer=Renderer(), 
+    model,
+    dataset=dataset,
+    keypoints=keypoints,
+    renderer=Renderer(),
     device=torch.device('cpu'),
-    dtype=torch.float32
+    dtype=torch.float32,
+    image_path="./samples/" + str(sample_index + 1).zfill(3) + ".png"
+
 )
-pose = camera.estimate_camera_pos()
+pose, transform = camera.estimate_camera_pos()
 print("Pose matrix: \n", pose)
+
+print("Transform matrix: \n", transform)
