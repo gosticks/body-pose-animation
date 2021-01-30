@@ -46,26 +46,30 @@ class CameraEstimate:
     def visualize_mesh(self, keypoints, smpl_points):
 
         # hardcoded scaling factor
-        scaling_factor = 1
-        smpl_points /= scaling_factor
+        # scaling_factor = 1
+        # smpl_points /= scaling_factor
 
-        color_3d = [0.1, 0.9, 0.1, 1.0]
-        self.transformed_points = self.renderer.render_points(
-            smpl_points, color=color_3d, name="smpl_torso", group_name="body")
+        # color_3d = [0.1, 0.9, 0.1, 1.0]
+        # self.transformed_points = self.renderer.render_points(
+        #     smpl_points, color=color_3d, name="smpl_torso", group_name="body")
 
-        color_2d = [0.9, 0.1, 0.1, 1.0]
-        self.renderer.render_keypoints(keypoints, color=color_2d)
+        # color_2d = [0.9, 0.1, 0.1, 1.0]
+        # self.renderer.render_keypoints(keypoints, color=color_2d)
 
-        model_color = [0.3, 0.3, 0.3, 0.8]
-        self.renderer.render_model(
-            self.model, self.output_model, model_color)
+        # model_color = [0.3, 0.3, 0.3, 0.8]
+        # self.renderer.render_model(
+        #     self.model, self.output_model, model_color)
 
         camera_color = [0.0, 0.0, 0.1, 1.0]
         self.camera_renderer = self.renderer.render_camera(color=camera_color)
 
-        if self.image_path is not None:
-            self.renderer.render_image_from_path(self.image_path)
+        # if self.image_path is not None:
+        #     self.renderer.render_image_from_path(self.image_path)
         self.renderer.start()
+
+    def setup_visualization(self, render_points, render_keypoints):
+        self.transformed_points = render_points
+
 
     def sum_of_squares(self, params, X, Y):
         y_pred = self.loss_model(params, X)
@@ -212,8 +216,7 @@ class TorchCameraEstimate(CameraEstimate):
             else:
                 loss.backward()
             opt2.step()
-            self.renderer.scene.set_pose(
-                self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
+            self.renderer.scene.set_pose( self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
             per = int((cam_tol/loss*100).item())
             if per > 100:
                 pbar.update(100 - current)
@@ -225,9 +228,9 @@ class TorchCameraEstimate(CameraEstimate):
                 stop = self.patience_module(loss, 5)
         pbar.update(100 - current)
         pbar.close()
-        camera_transform_matrix = camera_intrinsics @ self.torch_params_to_pose(
+        camera_transform_matrix = self.torch_params_to_pose(
             params)
-        return camera_transform_matrix, transform_matrix
+        return camera_intrinsics, transform_matrix, camera_transform_matrix
 
     def transform_3d_to_2d(self, params, X):
         camera_ext = rtvec_to_pose(
@@ -282,23 +285,23 @@ class TorchCameraEstimate(CameraEstimate):
                 self.memory=torch.clone(variable)
                 return True
 
-sample_index = 0
+# sample_index = 0
 
-conf = load_config()
-dataset = SMPLyDataset()
-model = SMPLyModel(conf['modelPath']).create_model()
-keypoints, conf = dataset[sample_index]
-camera = TorchCameraEstimate(
-    model,
-    dataset=dataset,
-    keypoints=keypoints,
-    renderer=Renderer(),
-    device=torch.device('cpu'),
-    dtype=torch.float32,
-    image_path="./samples/" + str(sample_index + 1).zfill(3) + ".png"
+# conf = load_config()
+# dataset = SMPLyDataset()
+# model = SMPLyModel(conf['modelPath']).create_model()
+# keypoints, conf = dataset[sample_index]
+# camera = TorchCameraEstimate(
+#     model,
+#     dataset=dataset,
+#     keypoints=keypoints,
+#     renderer=Renderer(),
+#     device=torch.device('cpu'),
+#     dtype=torch.float32,
+#     image_path="./samples/" + str(sample_index + 1).zfill(3) + ".png"
 
-)
-pose, transform = camera.estimate_camera_pos()
-print("Pose matrix: \n", pose)
+# )
+# pose, transform = camera.estimate_camera_pos()
+# print("Pose matrix: \n", pose)
 
-print("Transform matrix: \n", transform)
+# print("Transform matrix: \n", transform)
