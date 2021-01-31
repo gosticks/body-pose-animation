@@ -50,15 +50,17 @@ def render_camera(scene, radius=0.5, height=0.5, color=[0.0, 0.0, 1.0, 1.0], nam
     return scene.add(pcl, name=name)
 
 
-def render_image_plane(scene, image, name=None):
+def render_image_plane(scene, image, scale, name=None):
     height, width, _ = image.shape
     mat = trimesh.visual.texture.TextureVisuals(
         image=image, uv=[[0, 0], [0, 1], [1, 0], [1, 1]])
     tm = trimesh.load('plane.obj', visual=mat)
     tm.visual = mat
     tfs = np.eye(4)
-    tfs[0, 0] = width / height
-    tfs[0, 3] = width / height - 1
+    tfs[0, 0] = width / height * scale
+    tfs[1 ,1] *= scale
+    tfs[2 ,2] *= scale
+    tfs[0, 3] = (width / height - 1)* scale
     material2 = pyrender.Material(name=name, emissiveTexture=image)
     m = pyrender.Mesh.from_trimesh(tm, poses=tfs)
     return scene.add(m, name=name)
