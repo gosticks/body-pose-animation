@@ -167,12 +167,12 @@ class Renderer:
         self.add_to_group("body", node)
         return node
 
-    def render_image_from_path(self, path):
+    def render_image_from_path(self, path, scale=1):
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.render_image(img)
+        self.render_image(img, scale)
 
-    def render_image(self, image):
+    def render_image(self, image, scale):
 
         # height, width, _ = image.shape
         # vertex_colors = np.reshape(image, (-1, 3))
@@ -187,7 +187,7 @@ class Renderer:
 
         # img = pyrender.Mesh.from_points(pixels, vertex_colors)
         # self.scene.add(img, name="image")
-        _ = render_image_plane(self.scene, image)
+        _ = render_image_plane(self.scene, image, scale)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
         # create pose matrix

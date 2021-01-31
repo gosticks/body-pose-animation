@@ -15,6 +15,7 @@ import torchgeometry as tgm
 from torchgeometry.core.conversions import rtvec_to_pose
 import cv2
 from tqdm import tqdm
+import torch.nn.functional as F
 
 
 class CameraEstimate:
@@ -26,7 +27,8 @@ class CameraEstimate:
             renderer,
             image_path=None,
             dtype=torch.float32,
-            device=torch.device("cpu")):
+            device=torch.device("cpu"),
+            est_scale=1):
         self.model = model
         self.dataset = dataset
         self.output_model = model(return_verts=True)
@@ -35,6 +37,7 @@ class CameraEstimate:
         self.device = device
         self.image_path = image_path
         self.keypoints = keypoints
+        self.scale = torch.tensor([est_scale,est_scale,est_scale],  requires_grad=False, dtype=self.dtype, device=self.device)
 
     def get_torso_keypoints(self):
         smpl_keypoints = self.output_model.joints.detach().cpu().numpy().squeeze()
@@ -250,11 +253,15 @@ class TorchCameraEstimate(CameraEstimate):
     def torch_params_to_pose(self, params):
         transform = rtvec_to_pose(
             torch.cat((params[1], params[0])).view(-1).unsqueeze(0))
+        for i  in range(3):
+            transform[0,i,i] *= self.scale[i]
         return transform[0, :, :]
 
     def C(self, params, X):
         Ext_mat = rtvec_to_pose(
             torch.cat((params[1], params[0])).view(-1).unsqueeze(0))
+        for i  in range(3):
+            Ext_mat[0,i,i] *= self.scale[i]
         y_pred = Ext_mat @ X
         y_pred = y_pred.squeeze(2)
         y_pred = y_pred[:, :3]

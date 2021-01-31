@@ -81,7 +81,7 @@ est_scale = estimate_scale(joints, keypoints)
 print("ESTIMATED SCALE:", est_scale)
 
 # apply scaling to keypoints
-# keypoints = keypoints * est_scale
+keypoints = keypoints * est_scale
 
 
 r = Renderer()
@@ -97,7 +97,7 @@ print(img_path)
 r.render_model(model, model_out)
 # r.render_joints(joints)
 # r.render_keypoints(keypoints)
-r.render_image_from_path(img_path)
+r.render_image_from_path(img_path, est_scale)
 
 # render openpose torso markers
 render_keypoints = r.render_keypoints(
@@ -118,7 +118,8 @@ camera = TorchCameraEstimate(
     renderer=r,
     device=torch.device('cpu'),
     dtype=torch.float32,
-    image_path=img_path
+    image_path=img_path,
+    est_scale= est_scale
 )
 pose, transform, cam_trans = camera.estimate_camera_pos()
 
