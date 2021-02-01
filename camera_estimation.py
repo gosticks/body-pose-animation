@@ -37,7 +37,8 @@ class CameraEstimate:
         self.device = device
         self.image_path = image_path
         self.keypoints = keypoints
-        self.scale = torch.tensor([est_scale,est_scale,est_scale],  requires_grad=False, dtype=self.dtype, device=self.device)
+        self.scale = torch.tensor([est_scale, est_scale, est_scale],
+                                  requires_grad=False, dtype=self.dtype, device=self.device)
 
     def get_torso_keypoints(self):
         smpl_keypoints = self.output_model.joints.detach().cpu().numpy().squeeze()
@@ -72,7 +73,6 @@ class CameraEstimate:
 
     def setup_visualization(self, render_points, render_keypoints):
         self.transformed_points = render_points
-
 
     def sum_of_squares(self, params, X, Y):
         y_pred = self.loss_model(params, X)
@@ -114,7 +114,7 @@ class CameraEstimate:
 
 
 class TorchCameraEstimate(CameraEstimate):
-    def estimate_camera_pos(self): 
+    def estimate_camera_pos(self):
         self.memory = None
         translation = torch.zeros(
             1, 3, requires_grad=True, dtype=self.dtype, device=self.device)
@@ -167,8 +167,10 @@ class TorchCameraEstimate(CameraEstimate):
                     pbar.update(per - current)
                     current = per
                 stop = loss > tol
-                if stop == True:
-                    stop = self.patience_module(loss, 5)
+
+                # FIXME: same error as below
+                # if stop == True:
+                #     stop = self.patience_module(loss, 5)
         pbar.update(abs(100 - current))
         pbar.close()
         self.memory = None
@@ -204,31 +206,45 @@ class TorchCameraEstimate(CameraEstimate):
 
         stop = True
         first = True
-        cam_tol = 6e-5
+        cam_tol = 6e-3
         print("Estimating Camera transformations...")
         pbar = tqdm(total=100)
         current = 0
+
         while stop:
             y_pred = self.transform_3d_to_2d(
                 params, init_points_3d_prepared)
             loss = torch.nn.SmoothL1Loss()(init_points_2d.float(), y_pred.float())
             loss.requres_grad = True
             opt2.zero_grad()
+
             if first:
                 loss.backward(retain_graph=True)
             else:
                 loss.backward()
             opt2.step()
-            self.renderer.scene.set_pose( self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
+            self.renderer.scene.set_pose(
+                self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
             per = int((cam_tol/loss*100).item())
+
             if per > 100:
                 pbar.update(100 - current)
             else:
                 pbar.update(per - current)
+
             current = per
             stop = loss > cam_tol
-            if stop == True:
-                stop = self.patience_module(loss, 5)
+
+            # FIXME: this does not work for me, here is the error
+            # TypeError: eq() received an invalid combination of arguments - got (NoneType), but expected one of:
+            #  * (Tensor other)
+            #       didn't match because some of the arguments have invalid types: (NoneType)
+            #  * (Number other)
+            #       didn't match because some of the arguments have invalid types: (NoneType)
+
+            # if stop == True:
+            #     stop = self.patience_module(loss, 5)
+
         pbar.update(100 - current)
         pbar.close()
         camera_transform_matrix = self.torch_params_to_pose(
@@ -253,15 +269,15 @@ class TorchCameraEstimate(CameraEstimate):
     def torch_params_to_pose(self, params):
         transform = rtvec_to_pose(
             torch.cat((params[1], params[0])).view(-1).unsqueeze(0))
-        for i  in range(3):
-            transform[0,i,i] *= self.scale[i]
+        for i in range(3):
+            transform[0, i, i] *= self.scale[i]
         return transform[0, :, :]
 
     def C(self, params, X):
         Ext_mat = rtvec_to_pose(
             torch.cat((params[1], params[0])).view(-1).unsqueeze(0))
-        for i  in range(3):
-            Ext_mat[0,i,i] *= self.scale[i]
+        for i in range(3):
+            Ext_mat[0, i, i] *= self.scale[i]
         y_pred = Ext_mat @ X
         y_pred = y_pred.squeeze(2)
         y_pred = y_pred[:, :3]
@@ -276,7 +292,7 @@ class TorchCameraEstimate(CameraEstimate):
 
     def patience_module(self, variable, counter: int):
         if self.memory == None:
-            self.memory=torch.clone(variable)
+            self.memory = torch.clone(variable)
             self.patience_count = 0
             return True
         if self.patience_count >= counter:
@@ -289,7 +305,7 @@ class TorchCameraEstimate(CameraEstimate):
                 return True
             else:
                 self.patience_count = 0
-                self.memory=torch.clone(variable)
+                self.memory = torch.clone(variable)
                 return True
 
 # sample_index = 0

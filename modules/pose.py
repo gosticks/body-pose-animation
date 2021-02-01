@@ -1,3 +1,4 @@
+from model import VPoserModel
 from modules.camera import SimpleCamera
 from renderer import Renderer
 from utils.mapping import get_mapping_arr
@@ -15,23 +16,27 @@ class BodyPose(nn.Module):
     def __init__(
         self,
         model: SMPL,
+        keypoint_conf=None,
         dtype=torch.float32,
         device=None,
+        model_type="smplx"
+
     ):
         super(BodyPose, self).__init__()
         self.dtype = dtype
         self.device = device
         self.model = model
+        self.model_type = model_type
 
         # create valid joint filter
         filter = self.get_joint_filter()
         self.register_buffer("filter", filter)
 
         # attach SMPL pose tensor as parameter to the layer
-        body_pose = torch.zeros(model.body_pose.shape,
-                                dtype=dtype, device=device)
-        body_pose = nn.Parameter(body_pose, requires_grad=True)
-        self.register_parameter("pose", body_pose)
+        # body_pose = torch.zeros(model.body_pose.shape,
+        #                         dtype=dtype, device=device)
+        # body_pose = nn.Parameter(body_pose, requires_grad=True)
+        # self.register_parameter("pose", body_pose)
 
     def get_joint_filter(self):
         """OpenPose and SMPL do not have fully matching joint positions,
@@ -42,7 +47,8 @@ class BodyPose(nn.Module):
         """
 
         # create a list with 1s for used joints and 0 for ignored joints
-        mapping = get_mapping_arr()
+        mapping = get_mapping_arr(output_format=self.model_type)
+        print(mapping.shape)
         filter = torch.zeros(
             (len(mapping), 3), dtype=self.dtype, device=self.device)
         for index, valid in enumerate(mapping > -1):
@@ -51,15 +57,15 @@ class BodyPose(nn.Module):
 
         return filter
 
-    def forward(self):
+    def forward(self, pose):
         bode_output = self.model(
-            body_pose=self.pose
+            body_pose=pose
         )
+
         # store model output for later renderer usage
         self.cur_out = bode_output
 
         joints = bode_output.joints
-
         # return a list with invalid joints set to zero
         return joints * self.filter.unsqueeze(0)
 
@@ -70,14 +76,17 @@ def train_pose(
     keypoint_conf,
     camera: SimpleCamera,
     loss_layer=torch.nn.MSELoss(),
-    learning_rate=1e-3,
+    learning_rate=1e-1,
     device=torch.device('cpu'),
     dtype=torch.float32,
     renderer: Renderer = None,
     optimizer=None,
     iterations=25
 ):
-
+    vposer = VPoserModel()
+    vposer_model = vposer.model
+    vposer_model.poZ_body.required_grad = True
+    vposer_params = vposer.get_vposer_latens()
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
     keypoints_conf = torch.tensor(keypoint_conf).to(device)
@@ -88,14 +97,19 @@ def train_pose(
     pose_layer = BodyPose(model, dtype=dtype, device=device).to(device)
 
     if optimizer is None:
-        optimizer = torch.optim.LBFGS([pose_layer.pose], learning_rate)
+        optimizer = torch.optim.LBFGS(
+            vposer_model.parameters(), learning_rate)
         #optimizer = torch.optim.Adam(pose_layer.parameters(), learning_rate)
 
     pbar = tqdm(total=iterations)
 
     def predict():
+        body = vposer_model()
+        pose = body.pose_body
+        print(pose)
+
         # return joints based on current model state
-        body_joints = pose_layer()
+        body_joints = pose_layer(pose)
 
         # compute homogeneous coordinates and project them to 2D space
         # TODO: create custom cost function

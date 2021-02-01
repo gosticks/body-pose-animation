@@ -119,11 +119,11 @@ camera = TorchCameraEstimate(
     device=torch.device('cpu'),
     dtype=torch.float32,
     image_path=img_path,
-    est_scale= est_scale
+    est_scale=est_scale
 )
 pose, transform, cam_trans = camera.estimate_camera_pos()
 
-camera.setup_visualization(render_points, render_keypoints )
+camera.setup_visualization(render_points, render_keypoints)
 
 
 # start renderer
@@ -135,9 +135,9 @@ camera_transformation = transform.clone().detach().to(device=device, dtype=dtype
 camera_int = pose.clone().detach().to(device=device, dtype=dtype)
 camera_params = cam_trans.clone().detach().to(device=device, dtype=dtype)
 
-camera = SimpleCamera(dtype, device, z_scale=1,
+camera = SimpleCamera(dtype, device,
                       transform_mat=camera_transformation,
-                    #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
+                      #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
                       )
 
 r.set_group_pose("body", camera_transformation.detach().cpu().numpy())
