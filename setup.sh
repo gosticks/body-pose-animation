@@ -11,3 +11,7 @@ mkdir -p ./models/smpl
 cp ./tmp/smpl/smplify_public/code/models/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl ./models/smpl/SMPL_NEUTRAL.pkl
 cp ./tmp/smpl/smplify_public/code/models/regressors_locked_normalized_female.npz ./models/smpl/SMPL_FEMALE.npz
 cp ./tmp/smpl/smplify_public/code/models/regressors_locked_normalized_male.npz ./models/smpl/SMPL_MALE.npz
+
+wget --no-check-certificate -O ./tmp/vposer.smplx.zip https://psfiles.is.tuebingen.mpg.de/downloads/smplx/vposer_v1_0-zip
+bsdtar -x -f ./tmp/vposer.smplx.zip -C ./tmp/vposer
+cp -r ./tmp/vposer ./vposer
