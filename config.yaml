@@ -1,2 +1,3 @@
 inputPath: ./samples
 modelPath: ./models
+modelFile: ./models/smpl/SMPL_NEUTRAL.pkl

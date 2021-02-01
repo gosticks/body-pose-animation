@@ -56,10 +56,18 @@ def get_mapping_arr(
     input_format: str = "body_25",
     output_format: str = "smpl",
 ) -> list:
+
     # TODO: expand features as needed
     # based on mappings found here
     # https://github.com/ortegatron/playing_smplifyx/blob/master/smplifyx/utils.py
-    return openpose_to_smpl
+    if output_format == "smpl":
+        return openpose_to_smpl
+    if output_format == "smplx":
+        # create a list of length 127 and pad all values beyond 47 with -1 since we do not perform face and finger detection
+        new = np.pad(openpose_to_smpl,
+                     (0, 127-len(openpose_to_smpl)), constant_values=(0, -1))
+        print(openpose_to_smpl, new)
+        return new
 
 
 joint_names_body_25 = {
