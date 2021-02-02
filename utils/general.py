@@ -5,6 +5,7 @@ import cv2
 import yaml
 import os.path
 
+
 def load_config():
     with open('./config.yaml') as file:
         # The FullLoader parameter handles the conversion from YAML

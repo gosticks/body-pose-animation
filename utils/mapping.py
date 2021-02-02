@@ -4,7 +4,7 @@ import numpy as np
 from trimesh.triangles import normals
 
 openpose_to_smpl = np.array([
-    8,  # hip - middle
+    8,  # hip - middle / pelvis
     12,  # hip - right
     9,  # hip - left
     -1,  # body center (belly, not present in body_25)
@@ -64,9 +64,10 @@ def get_mapping_arr(
         return openpose_to_smpl
     if output_format == "smplx":
         # create a list of length 127 and pad all values beyond 47 with -1 since we do not perform face and finger detection
-        new = np.pad(openpose_to_smpl,
-                     (0, 127-len(openpose_to_smpl)), constant_values=(0, -1))
-        print(openpose_to_smpl, new)
+        new = np.pad(
+            openpose_to_smpl,
+            (0, 127-len(openpose_to_smpl)),
+            constant_values=(0, -1))
         return new
 
 
