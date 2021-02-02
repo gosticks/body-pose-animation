@@ -50,7 +50,7 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
-sample_index = 1
+sample_index = 2
 
 sample_transforms = [
     [
@@ -172,12 +172,12 @@ print("using device", device)
 
 train_pose(
     model,
-    learning_rate=1e-2,
+    learning_rate=1e-1,
     keypoints=keypoints,
     keypoint_conf=conf,
     # TODO: use camera_estimation camera here
     camera=camera,
     renderer=r,
     device=device,
-    iterations=30000
+    iterations=600
 )
