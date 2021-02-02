@@ -127,7 +127,7 @@ for t in range(5000):
 camera_transf = trans.get_transform_mat(with_translate=True).detach().cpu()
 print("final pose:", camera_transf.numpy())
 
-camera = SimpleCamera(dtype, device, z_scale=1,
+camera = SimpleCamera(dtype, device,
                       transform_mat=camera_transf)
 
 train_pose(

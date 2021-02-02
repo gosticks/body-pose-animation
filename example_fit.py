@@ -13,6 +13,26 @@ from utils.mapping import *
 from utils.general import *
 from camera_estimation import TorchCameraEstimate
 
+
+# mapping = [55, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
+#            8, 1, 4, 7, 56, 57, 58, 59]  # 7, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+
+
+# arr = np.ones(127) * -1  # arr = np.ones(45) * -1
+
+
+# for i, v in enumerate(mapping):  # for i, v in enumerate(mapping):
+#     arr[v] = i  # arr[v] = i
+#     print(v, i)  # print(v, i)
+
+
+# for v in arr:  # for v in arr:
+#     print(  # print(
+#         int(v), ","  # int(v), ","
+#     )  # )
+# print(arr)  # print(arr)
+
+
 ascii_logo = """\
   /$$$$$$  /$$      /$$ /$$$$$$$  /$$   /$$     /$$
  /$$__  $$| $$$    /$$$| $$__  $$| $$  |  $$   /$$/
@@ -91,7 +111,7 @@ r = Renderer()
 init_joints = get_torso(joints)
 init_keypoints = get_torso(keypoints)
 
-print(img_path)
+print("image path:", img_path)
 # setup renderer
 
 r.render_model(model, model_out)
@@ -100,6 +120,11 @@ r.render_model(model, model_out)
 r.render_image_from_path(img_path, est_scale)
 
 # render openpose torso markers
+render_keypoints = r.render_points(
+    keypoints,
+    radius=0.005,
+    color=[1.0, 1.0, 1.0, 1.0])
+
 render_keypoints = r.render_keypoints(
     init_keypoints,
     radius=0.01,
@@ -119,11 +144,11 @@ camera = TorchCameraEstimate(
     device=torch.device('cpu'),
     dtype=torch.float32,
     image_path=img_path,
-    est_scale= est_scale
+    est_scale=est_scale
 )
 pose, transform, cam_trans = camera.estimate_camera_pos()
 
-camera.setup_visualization(render_points, render_keypoints )
+camera.setup_visualization(render_points, render_keypoints)
 
 
 # start renderer
@@ -135,9 +160,9 @@ camera_transformation = transform.clone().detach().to(device=device, dtype=dtype
 camera_int = pose.clone().detach().to(device=device, dtype=dtype)
 camera_params = cam_trans.clone().detach().to(device=device, dtype=dtype)
 
-camera = SimpleCamera(dtype, device, z_scale=1,
+camera = SimpleCamera(dtype, device,
                       transform_mat=camera_transformation,
-                    #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
+                      #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
                       )
 
 r.set_group_pose("body", camera_transformation.detach().cpu().numpy())
@@ -147,12 +172,12 @@ print("using device", device)
 
 train_pose(
     model,
-    learning_rate=1e-2,
+    learning_rate=1e-1,
     keypoints=keypoints,
     keypoint_conf=conf,
     # TODO: use camera_estimation camera here
     camera=camera,
     renderer=r,
     device=device,
-    iterations=30
+    # iterations=30
 )

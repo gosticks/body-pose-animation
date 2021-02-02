@@ -4,7 +4,7 @@ import numpy as np
 from trimesh.triangles import normals
 
 openpose_to_smpl = np.array([
-    8,  # hip - middle
+    8,  # hip - middle / pelvis
     12,  # hip - right
     9,  # hip - left
     -1,  # body center (belly, not present in body_25)
@@ -51,15 +51,152 @@ openpose_to_smpl = np.array([
         -1,
 ])
 
+openpose_to_smplx = np.array([8,
+                              12,
+                              9,
+                              -1,
+                              13,
+                              10,
+                              -1,
+                              14,
+                              11,
+                              -1,
+                              -1,
+                              -1,
+                              1,
+                              -1,
+                              -1,
+                              -1,
+                              5,
+                              2,
+                              6,
+                              3,
+                              7,
+                              4,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              0,
+                              15,
+                              16,
+                              17,
+                              18,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              -1])
+
 
 def get_mapping_arr(
     input_format: str = "body_25",
     output_format: str = "smpl",
 ) -> list:
+
     # TODO: expand features as needed
     # based on mappings found here
     # https://github.com/ortegatron/playing_smplifyx/blob/master/smplifyx/utils.py
-    return openpose_to_smpl
+    if output_format == "smpl":
+        return openpose_to_smpl
+    if output_format == "smplx":
+        # create a list of length 127 and pad all values beyond 47 with -1 since we do not perform face and finger detection
+        # return np.pad(
+        #     openpose_to_smpl,
+        #     (0, 127-len(openpose_to_smpl)),
+        #     constant_values=(0, -1))
+        return openpose_to_smplx
 
 
 joint_names_body_25 = {

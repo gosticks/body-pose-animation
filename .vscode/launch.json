@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Debug Example",
+            "name": "Python: Debug Fit",
             "type": "python",
             "request": "launch",
-            "program": "./example.py",
+            "program": "./example_fit.py",
             "console": "integratedTerminal"
         }
     ]

@@ -12,20 +12,15 @@ class SimpleCamera(nn.Module):
         self,
         dtype=torch.float32,
         device=None,
-        z_scale=0.5,
         transform_mat=None,
-        camera_intrinsics = None,
-        camera_trans_rot = None
+        camera_intrinsics=None,
+        camera_trans_rot=None
     ):
         super(SimpleCamera, self).__init__()
         self.hasTransform = False
         self.hasCameraTransform = False
         self.dtype = dtype
         self.device = device
-
-        zs = torch.ones(1, device=device)
-        zs *= z_scale
-        self.register_buffer("z_scale", zs)
 
         if camera_intrinsics is not None:
             self.hasCameraTransform = True
@@ -37,27 +32,23 @@ class SimpleCamera(nn.Module):
             self.hasTransform = True
             self.register_buffer("trans", transform_mat)
             # self.register_buffer("disp_trans", transform_mat)
-        
-        
 
     def forward(self, points):
         if self.hasTransform:
-            proj_points = self.trans @ points.reshape(45, 4, 1)
-            proj_points = proj_points.reshape(1, 45, 4)[:, :, :2] * 1
+            proj_points = self.trans @ points.reshape(-1, 4, 1)
+            proj_points = proj_points.reshape(1, -1, 4)[:, :, :2] * 1
             proj_points = F.pad(proj_points, (0, 1, 0, 0), value=0)
             return proj_points
         if self.hasCameraTransform:
-            proj_points = self.cam_int[:3, :3] @ self.cam_trans_rot[:3, :] @ points.reshape(45, 4, 1)
+            proj_points = self.cam_int[:3, :3] @ self.cam_trans_rot[:3,
+                                                                    :] @ points.reshape(-1, 4, 1)
             result = proj_points.squeeze(2)
-            denomiator = torch.zeros(45, 3)
-            for i in range(45):
+            denomiator = torch.zeros(points.shape[1], 3)
+            for i in range(points.shape[1]):
                 denomiator[i, :] = result[i, 2]
             result = result/denomiator
             result[:, 2] = 0
             return result
 
-
         # scale = (points[:, :, 2] / self.z_scale)
         # print(points.shape, scale.shape)
-        
-        
