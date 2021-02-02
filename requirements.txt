@@ -39,7 +39,7 @@ six @ file:///tmp/build/80754af9/six_1605205335545/work
 smplx==0.1.26
 tensorboardX==2.1
 toml @ file:///tmp/build/80754af9/toml_1592853716807/work
-torch==1.1.0
+torch==1.7.1
 torch-utils==0.1.2
 torchgeometry==0.1.2
 torchvision==0.8.2+cu110
