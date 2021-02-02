@@ -1,3 +1,4 @@
+from modules.priors import SMPLifyAnglePrior
 from model import VPoserModel
 from modules.camera import SimpleCamera
 from renderer import Renderer
@@ -33,25 +34,12 @@ class BodyPose(nn.Module):
         # create valid joint filter
         filter = self.get_joint_filter()
         self.register_buffer("filter", filter)
-        # vp, ps = load_vposer("./vposer_v1_0")
-        # vp = vp.to(device=device)
-        # vp.requires_grad = True
-        # self.vp = vp
-        # poZ_body_sample = torch.from_numpy(
-        #     np.random.randn(1, 32).astype(np.float32)).to(device=device)
-
-        # poZ = nn.Parameter(poZ_body_sample, requires_grad=True)
-        # self.register_parameter("poZ", poZ)
 
         # attach SMPL pose tensor as parameter to the layer
         body_pose = torch.zeros(model.body_pose.shape,
                                 dtype=dtype, device=device)
         body_pose = nn.Parameter(body_pose, requires_grad=True)
         self.register_parameter("body_pose", body_pose)
-        # body_pose = torch.zeros(model.body_pose.shape,
-        #                         dtype=dtype, device=device)
-        # body_pose = nn.Parameter(model.pose_body, requires_grad=True)
-        # self.register_parameter("body_pose", body_pose)
 
     def get_joint_filter(self):
         """OpenPose and SMPL do not have fully matching joint positions,
@@ -77,10 +65,9 @@ class BodyPose(nn.Module):
         return filter
 
     def forward(self, vpose_pose):
-        # pose_body = self.vp.decode(self.poZ, output_type='aa').view(-1, 63)
-        # pose_body.requires_grad = True
+
         bode_output = self.model(
-            body_pose=self.body_pose  # + vpose_pose
+            body_pose=self.body_pose
         )
 
         # store model output for later renderer usage
@@ -89,9 +76,6 @@ class BodyPose(nn.Module):
         joints = bode_output.joints
         # return a list with invalid joints set to zero
         filtered_joints = joints * self.filter.unsqueeze(0)
-
-        # print("filtered:", filtered_joints.shape, get_named_joints(
-        #     filtered_joints.detach().cpu().numpy().squeeze(), ["shoulder-left", "hand-left", "elbow-left"]))
         return filtered_joints
 
 
@@ -108,24 +92,15 @@ def train_pose(
     optimizer=None,
     iterations=60
 ):
-
-    # filter keypoints to only include desired components
-    # mapping = get_mapping_arr(output_format="smplx")
-
-    # filter_shape = (len(mapping), 3)
-
-    # filter = np.zeros(filter_shape)
-    # for index, valid in enumerate(mapping > -1):
-    #     if valid:
-    #         filter[index] += 1
-    # keypoints = keypoints * filter
+    # loss layers
     vposer = VPoserModel()
     vposer_layer = vposer.model
     vposer_params = vposer.get_vposer_latens()
 
+    angle_prior_layer = SMPLifyAnglePrior()
+
     index = JOINT_NAMES.index("left_middle1")
-    # print(index)
-    # print("Keypoint:", keypoints.squeeze()[index])
+
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
     keypoints_conf = torch.tensor(keypoint_conf).to(device)
@@ -137,8 +112,8 @@ def train_pose(
 
     if optimizer is None:
         parameters = [pose_layer.body_pose, vposer_params]
-        optimizer = torch.optim.LBFGS(parameters, learning_rate)
-        #optimizer = torch.optim.Adam(parameters, learning_rate)
+        # optimizer = torch.optim.LBFGS(parameters, learning_rate)
+        optimizer = torch.optim.Adam(parameters, learning_rate)
 
     pbar = tqdm(total=iterations)
 
@@ -157,9 +132,11 @@ def train_pose(
         joint_loss = loss_layer(points, keypoints)
 
         # apply pose prior loss.
-        prior_loss = poZ.pow(2).sum() * 2
+        prior_loss = poZ.pow(2).sum() * 0.05
 
-        return joint_loss + prior_loss
+        angle_loss = angle_prior_layer(pose_layer.body_pose).sum() ** 2 * 0.05
+
+        return joint_loss + prior_loss + angle_loss
 
     def optim_closure():
         if torch.is_grad_enabled():
