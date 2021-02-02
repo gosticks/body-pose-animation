@@ -80,7 +80,7 @@ class BodyPose(nn.Module):
         # pose_body = self.vp.decode(self.poZ, output_type='aa').view(-1, 63)
         # pose_body.requires_grad = True
         bode_output = self.model(
-            body_pose=self.body_pose + vpose_pose
+            body_pose=self.body_pose  # + vpose_pose
         )
 
         # store model output for later renderer usage
