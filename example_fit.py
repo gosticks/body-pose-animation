@@ -13,6 +13,26 @@ from utils.mapping import *
 from utils.general import *
 from camera_estimation import TorchCameraEstimate
 
+
+# mapping = [55, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
+#            8, 1, 4, 7, 56, 57, 58, 59]  # 7, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+
+
+# arr = np.ones(127) * -1  # arr = np.ones(45) * -1
+
+
+# for i, v in enumerate(mapping):  # for i, v in enumerate(mapping):
+#     arr[v] = i  # arr[v] = i
+#     print(v, i)  # print(v, i)
+
+
+# for v in arr:  # for v in arr:
+#     print(  # print(
+#         int(v), ","  # int(v), ","
+#     )  # )
+# print(arr)  # print(arr)
+
+
 ascii_logo = """\
   /$$$$$$  /$$      /$$ /$$$$$$$  /$$   /$$     /$$
  /$$__  $$| $$$    /$$$| $$__  $$| $$  |  $$   /$$/
@@ -152,7 +172,7 @@ print("using device", device)
 
 train_pose(
     model,
-    learning_rate=1e-2,
+    learning_rate=1e-1,
     keypoints=keypoints,
     keypoint_conf=conf,
     # TODO: use camera_estimation camera here

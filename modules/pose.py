@@ -110,22 +110,22 @@ def train_pose(
 ):
 
     # filter keypoints to only include desired components
-    mapping = get_mapping_arr(output_format="smplx")
+    # mapping = get_mapping_arr(output_format="smplx")
 
-    filter_shape = (len(mapping), 3)
+    # filter_shape = (len(mapping), 3)
 
-    filter = np.zeros(filter_shape)
-    for index, valid in enumerate(mapping > -1):
-        if valid:
-            filter[index] += 1
-    keypoints = keypoints * filter
+    # filter = np.zeros(filter_shape)
+    # for index, valid in enumerate(mapping > -1):
+    #     if valid:
+    #         filter[index] += 1
+    # keypoints = keypoints * filter
     vposer = VPoserModel()
     vposer_layer = vposer.model
     vposer_params = vposer.get_vposer_latens()
 
     index = JOINT_NAMES.index("left_middle1")
-    print(index)
-    print("Keypoint:", keypoints.squeeze()[index])
+    # print(index)
+    # print("Keypoint:", keypoints.squeeze()[index])
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
     keypoints_conf = torch.tensor(keypoint_conf).to(device)
@@ -138,7 +138,7 @@ def train_pose(
     if optimizer is None:
         parameters = [pose_layer.body_pose, vposer_params]
         optimizer = torch.optim.LBFGS(parameters, learning_rate)
-        # optimizer = torch.optim.Adam(parameters, learning_rate)
+        #optimizer = torch.optim.Adam(parameters, learning_rate)
 
     pbar = tqdm(total=iterations)
 
@@ -154,21 +154,10 @@ def train_pose(
         points = camera(points).squeeze()
 
         # TODO: create custom cost function
-
-        a = points.detach().cpu().numpy().squeeze()[index]
-        b = keypoints.detach().cpu().numpy().squeeze()[index]
-
-        # print(points)
-
-        print("j:", a)
-        print("k:", b)
-
-        print("loss:",  -np.mean(a - b))
-
         joint_loss = loss_layer(points, keypoints)
 
         # apply pose prior loss.
-        prior_loss = poZ.pow(2).sum()
+        prior_loss = poZ.pow(2).sum() * 2
 
         return joint_loss + prior_loss
 
