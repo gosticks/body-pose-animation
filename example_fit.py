@@ -179,5 +179,5 @@ train_pose(
     camera=camera,
     renderer=r,
     device=device,
-    iterations=600
+    iterations=10
 )

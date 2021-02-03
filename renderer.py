@@ -3,7 +3,7 @@ import numpy as np
 from pyrender import scene
 from smplx import SMPLLayer
 from smplx.body_models import SMPL
-from utils.render import render_model, render_points, render_camera, render_image_plane
+from utils.render import render_model, render_model_with_tfs, render_points, render_camera, render_image_plane
 import pyrender
 from scipy.spatial.transform import Rotation as R
 
@@ -92,11 +92,11 @@ class Renderer:
                 cur_group = self.groups[group_name]
             cur_group.append(node)
 
-    def render_points(self, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=None, group_name=None):
+    def render_points(self, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=None, group_name=None, transforms=None):
 
         self.acquire()
         node = render_points(self.scene, points=points,
-                             radius=radius, color=color, name=name)
+                             radius=radius, color=color, name=name, transform=transforms)
         self.release()
 
         self.add_to_group(group_name, node)
@@ -126,7 +126,7 @@ class Renderer:
 
         return self.render_points(points, radius, color=color, name="ops_keypoints", group_name="keypoints")
 
-    def render_joints(self, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0]):
+    def render_joints(self, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], transforms=None):
         """Utility method to render joints, executes render_points with a fixed name
 
         Args:
@@ -136,7 +136,7 @@ class Renderer:
         """
         self.remove_from_group("body", "body_joints")
 
-        return self.render_points(points, radius, color=color, name="body_joints", group_name="body")
+        return self.render_points(points, radius, color=color, name="body_joints", group_name="body", transforms=transforms)
 
     def render_model(
             self,
@@ -167,26 +167,42 @@ class Renderer:
         self.add_to_group("body", node)
         return node
 
+    def render_model_with_tfs(
+            self,
+            model: SMPLLayer,
+            model_out: SMPL,
+            color=[1.0, 0.3, 0.3, 0.8],
+            replace=True,
+            keep_pose=True,
+            render_joints=True,
+            transforms=None
+    ):
+        if model_out is None:
+            model_out = model()
+
+        if keep_pose:
+            node = self.get_node("body_mesh")
+            if node is not None:
+                original_pose = node.pose
+
+        self.render_joints(model_out.joints.detach().cpu().numpy().squeeze(), transforms=transforms)
+
+        self.remove_from_group("body", "body_mesh")
+
+        self.acquire()
+        node = render_model_with_tfs(self.scene, model, model_out,
+                            color, "body_mesh", replace=replace, transforms=transforms)
+        self.release()
+
+        self.add_to_group("body", node)
+        return node
+
     def render_image_from_path(self, path, scale=1):
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.render_image(img, scale)
 
     def render_image(self, image, scale):
-
-        # height, width, _ = image.shape
-        # vertex_colors = np.reshape(image, (-1, 3))
-
-        # # Create array of pixel location values ([0, 0], [1, 0] ... [1920, 1080])
-        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # pixels = np.flip(np.column_stack(np.where(gray >= 0)), axis=1)
-        # pixels = np.append(pixels, np.zeros((pixels.shape[0], 1)), axis=1)
-
-        # pixels[:, 0] = 2 * pixels[:, 0] / height - 1
-        # pixels[:, 1] = -2 * pixels[:, 1] / height + 1
-
-        # img = pyrender.Mesh.from_points(pixels, vertex_colors)
-        # self.scene.add(img, name="image")
         _ = render_image_plane(self.scene, image, scale)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
