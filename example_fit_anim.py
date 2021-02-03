@@ -50,7 +50,6 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 '''
 Optimization part without visualization
 '''
-
 if RUN_OPTIMIZATION:
     while get_next_frame(idx) is not None and idx <= FINISH_IDX:
         keypoints, confidence, img_path = get_next_frame(idx)
@@ -115,7 +114,7 @@ if RUN_OPTIMIZATION:
         pickle.dump(final_poses, fp)
     print("Results have been saved to", filename)
 
-# TODO: put into utils, rename file,
+# TODO: put into utils, rename file, use current body pose and camera transform for next optimization
 def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30):
     r = Renderer()
     r.start()
@@ -128,15 +127,12 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
     if end_frame is None:
         end_frame = len(final_poses)
 
-    print(len(final_poses))
-
     for i in range(start_frame, end_frame):
         body_pose = final_poses[i][0]
         camera_transform = final_poses[i][1]
 
-        # Changing image is too jerky, because the image has to be removed and added each time
-
         if with_background:
+            # Changing image is too jerky, because the image has to be removed and added each time
             pass
             # img_path = samples_dir + "/" + str(i) + ".png"
             # if r.get_node("image") is not None:
