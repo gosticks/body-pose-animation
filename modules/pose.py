@@ -75,7 +75,7 @@ class BodyPose(nn.Module):
 
         joints = bode_output.joints
         # return a list with invalid joints set to zero
-        filtered_joints = joints * self.filter.unsqueeze(0)
+        filtered_joints = joints  # * self.filter.unsqueeze(0)
         return filtered_joints
 
 
@@ -132,7 +132,7 @@ def train_pose(
         joint_loss = loss_layer(points, keypoints)
 
         # apply pose prior loss.
-        prior_loss = poZ.pow(2).sum() * 0.1
+        prior_loss = poZ.pow(2).sum() * 2
 
         #angle_loss = angle_prior_layer(pose_layer.body_pose).sum() ** 2 * 0.05
 
