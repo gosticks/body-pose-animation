@@ -1,15 +1,8 @@
-
-
 from modules.camera import SimpleCamera
-from modules.transform import Transform
 from modules.pose import BodyPose, train_pose
 from renderer import Renderer
-import torch
-import torchgeometry as tgm
 from model import *
-# from renderer import *
 from dataset import *
-from utils.mapping import *
 from utils.general import *
 from camera_estimation import TorchCameraEstimate
 
@@ -46,11 +39,11 @@ ascii_logo = """\
 """
 print(ascii_logo)
 conf = load_config()
-print("config loaded")
 dataset = SMPLyDataset()
 
-
 sample_index = 2
+samples_dir = conf['inputPath']
+rename_files(samples_dir + "/")
 
 sample_transforms = [
     [
@@ -87,7 +80,7 @@ l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 keypoints, conf = dataset[sample_index]
 img_path = "./samples/" + str(sample_index) + ".png"
-print(img_path)
+
 # ---------------------------------
 # Generate model and get joints
 # ---------------------------------
@@ -98,22 +91,17 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 # Draw in the joints of interest
 # ---------------------------------
 est_scale = estimate_scale(joints, keypoints)
-print("ESTIMATED SCALE:", est_scale)
 
 # apply scaling to keypoints
 keypoints = keypoints * est_scale
-
-
-r = Renderer()
 
 # integrating Camera Estimation
 
 init_joints = get_torso(joints)
 init_keypoints = get_torso(keypoints)
 
-print("image path:", img_path)
 # setup renderer
-
+r = Renderer()
 r.render_model(model, model_out)
 # r.render_joints(joints)
 # r.render_keypoints(keypoints)
@@ -149,7 +137,6 @@ camera = TorchCameraEstimate(
 pose, transform, cam_trans = camera.estimate_camera_pos()
 
 camera.setup_visualization(render_points, render_keypoints)
-
 
 # start renderer
 # r.start()
