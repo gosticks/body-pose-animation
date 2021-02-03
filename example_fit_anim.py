@@ -12,7 +12,7 @@ from utils.general import rename_files, get_new_filename
 
 START_IDX = 150  # starting index of the frame to optimize for
 FINISH_IDX = 200   # choose a big number to optimize for all frames in samples directory
-RUN_OPTIMIZATION = True
+RUN_OPTIMIZATION = False  # if False, only run already saved animation without optimization
 
 final_poses = []  # optimized poses array that is saved for playing the animation
 idx = START_IDX
@@ -73,7 +73,7 @@ if RUN_OPTIMIZATION:
             est_scale=est_scale
         )
 
-        pose, transform, cam_trans = camera.estimate_camera_pos()
+        pose, transform, cam_trans = camera.estimate_camera_pos(visualize=False)
         print("\nCamera optimization of frame", idx, "is finished.")
 
         camera_transformation = transform.clone().detach().to(device=device, dtype=dtype)
@@ -114,7 +114,7 @@ if RUN_OPTIMIZATION:
         pickle.dump(final_poses, fp)
     print("Results have been saved to", filename)
 
-# TODO: put into utils, rename file, use current body pose and camera transform for next optimization
+# TODO: use current body pose and camera transform for next optimization
 def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30):
     r = Renderer()
     r.start()
