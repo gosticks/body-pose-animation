@@ -172,3 +172,4 @@ def train_pose(
 
     pbar.close()
     print("Final result:", loss.item())
+    return pose_layer.cur_out

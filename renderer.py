@@ -141,21 +141,22 @@ class Renderer:
     def render_model(
             self,
             model: SMPLLayer,
-            model_out: SMPL,
+            model_out,
             color=[1.0, 0.3, 0.3, 0.8],
             replace=True,
             keep_pose=True,
-            render_joints=True,
+            render_joints=True
     ):
         if model_out is None:
             model_out = model()
 
         if keep_pose:
             node = self.get_node("body_mesh")
-            if node is not None:
-                original_pose = node.pose
+            #if node is not None:
+                #original_pose = node.pose
 
-        self.render_joints(model_out.joints.detach().cpu().numpy().squeeze())
+        if render_joints:
+            self.render_joints(model_out.joints.detach().cpu().numpy().squeeze())
 
         self.remove_from_group("body", "body_mesh")
 
@@ -167,12 +168,12 @@ class Renderer:
         self.add_to_group("body", node)
         return node
 
-    def render_image_from_path(self, path, scale=1):
+    def render_image_from_path(self, path, name, scale=1):
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.render_image(img, scale)
+        self.render_image(img, scale, name)
 
-    def render_image(self, image, scale):
+    def render_image(self, image, scale, name):
 
         # height, width, _ = image.shape
         # vertex_colors = np.reshape(image, (-1, 3))
@@ -187,7 +188,7 @@ class Renderer:
 
         # img = pyrender.Mesh.from_points(pixels, vertex_colors)
         # self.scene.add(img, name="image")
-        _ = render_image_plane(self.scene, image, scale)
+        _ = render_image_plane(self.scene, image, scale, name)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
         # create pose matrix
@@ -239,7 +240,18 @@ class Renderer:
             self.viewer.render_lock.release()
 
     def get_node(self, name):
-        for node in self.scene.get_nodes(name):
+        for node in self.scene.get_nodes(name=name):
             if node is not None:
                 return node
         return None
+
+    def remove_node(self, name):
+        node = self.get_node(name)
+        if node is None:
+            return
+        else:
+            if self.requires_lock():
+                self.viewer.render_lock.acquire()
+            self.scene.remove_node(node)
+            if self.requires_lock():
+                self.viewer.render_lock.release()

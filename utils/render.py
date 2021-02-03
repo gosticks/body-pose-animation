@@ -13,6 +13,7 @@ def render_model(
     replace=False,
     pose=None
 ):
+
     vertices = model_out.vertices.detach().cpu().numpy().squeeze()
 
     # set vertex colors, maybe use this to highlight accuracies
