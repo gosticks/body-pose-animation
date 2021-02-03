@@ -114,7 +114,7 @@ class CameraEstimate:
 
 
 class TorchCameraEstimate(CameraEstimate):
-    def estimate_camera_pos(self):
+    def estimate_camera_pos(self, visualize=True):
         self.memory = None
         translation = torch.zeros(
             1, 3, requires_grad=True, dtype=self.dtype, device=self.device)
@@ -125,7 +125,8 @@ class TorchCameraEstimate(CameraEstimate):
 
         init_points_2d, init_points_3d = self.get_torso_keypoints()
 
-        #self.visualize_mesh(init_points_2d, init_points_3d)
+        if visualize:
+            self.visualize_mesh(init_points_2d, init_points_3d)
 
         init_points_2d = torch.from_numpy(init_points_2d).to(
             device=self.device, dtype=self.dtype)
@@ -223,8 +224,9 @@ class TorchCameraEstimate(CameraEstimate):
             else:
                 loss.backward()
             opt2.step()
-            #self.renderer.scene.set_pose(
-                #self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
+            if visualize:
+                self.renderer.scene.set_pose(
+                    self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
             per = int((cam_tol/loss*100).item())
 
             if per > 100:
