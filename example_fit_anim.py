@@ -10,8 +10,9 @@ import pickle
 import time
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 30  # starting index of the frame to optimize for
-FINISH_IDX = 35   # choose a big number to optimize for all frames in samples directory
+START_IDX = 150  # starting index of the frame to optimize for
+FINISH_IDX = 200   # choose a big number to optimize for all frames in samples directory
+RUN_OPTIMIZATION = True
 
 final_poses = []  # optimized poses array that is saved for playing the animation
 idx = START_IDX
@@ -49,69 +50,70 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 '''
 Optimization part without visualization
 '''
-while get_next_frame(idx) is not None and idx <= FINISH_IDX:
-    keypoints, confidence, img_path = get_next_frame(idx)
 
-    est_scale = estimate_scale(joints, keypoints)
+if RUN_OPTIMIZATION:
+    while get_next_frame(idx) is not None and idx <= FINISH_IDX:
+        keypoints, confidence, img_path = get_next_frame(idx)
 
-    # apply scaling to keypoints
-    keypoints = keypoints * est_scale
+        est_scale = estimate_scale(joints, keypoints)
 
-    init_joints = get_torso(joints)
-    init_keypoints = get_torso(keypoints)
+        # apply scaling to keypoints
+        keypoints = keypoints * est_scale
 
-    camera = TorchCameraEstimate(
-        model,
-        dataset=dataset,
-        keypoints=keypoints,
-        renderer=None,
-        device=torch.device('cpu'),
-        dtype=torch.float32,
-        image_path=img_path,
-        est_scale=est_scale
-    )
+        init_joints = get_torso(joints)
+        init_keypoints = get_torso(keypoints)
 
-    pose, transform, cam_trans = camera.estimate_camera_pos()
-    print("\nCamera optimization of frame", idx, "is finished.")
+        camera = TorchCameraEstimate(
+            model,
+            dataset=dataset,
+            keypoints=keypoints,
+            renderer=None,
+            device=torch.device('cpu'),
+            dtype=torch.float32,
+            image_path=img_path,
+            est_scale=est_scale
+        )
 
-    camera_transformation = transform.clone().detach().to(device=device, dtype=dtype)
-    camera_int = pose.clone().detach().to(device=device, dtype=dtype)
-    camera_params = cam_trans.clone().detach().to(device=device, dtype=dtype)
-    camera = SimpleCamera(dtype, device,
-                          transform_mat=camera_transformation,
-                          #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
-                          )
+        pose, transform, cam_trans = camera.estimate_camera_pos()
+        print("\nCamera optimization of frame", idx, "is finished.")
 
-    final_pose = train_pose(
-        model,
-        learning_rate=1e-2,
-        keypoints=keypoints,
-        keypoint_conf=confidence,
-        # TODO: use camera_estimation camera here
-        camera=camera,
-        renderer=None,
-        device=device,
-        iterations=10
-    )
+        camera_transformation = transform.clone().detach().to(device=device, dtype=dtype)
+        camera_int = pose.clone().detach().to(device=device, dtype=dtype)
+        camera_params = cam_trans.clone().detach().to(device=device, dtype=dtype)
+        camera = SimpleCamera(dtype, device,
+                              transform_mat=camera_transformation,
+                              #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
+                              )
 
-    print("\nPose optimization of frame", idx, "is finished.")
-    R = camera.trans.numpy().squeeze()
-    idx += 1
+        final_pose = train_pose(
+            model,
+            learning_rate=1e-2,
+            keypoints=keypoints,
+            keypoint_conf=confidence,
+            # TODO: use camera_estimation camera here
+            camera=camera,
+            renderer=None,
+            device=device,
+            iterations=10
+        )
 
-    # append optimized pose and camera transformation to the array
-    final_poses.append((final_pose, R))
+        print("\nPose optimization of frame", idx, "is finished.")
+        R = camera.trans.numpy().squeeze()
+        idx += 1
 
-print("Optimization of", idx, "frames finished")
+        # append optimized pose and camera transformation to the array
+        final_poses.append((final_pose, R))
 
+    print("Optimization of", idx, "frames finished")
 
-'''
-Save final_poses array into results folder as a pickle dump
-'''
-filename = results_dir + get_new_filename()
-print("Saving results to", filename)
-with open(filename, "wb") as fp:
-    pickle.dump(final_poses, fp)
-print("Results have been saved to", filename)
+    '''
+    Save final_poses array into results folder as a pickle dump
+    '''
+    filename = results_dir + get_new_filename()
+    print("Saving results to", filename)
+    with open(filename, "wb") as fp:
+        pickle.dump(final_poses, fp)
+    print("Results have been saved to", filename)
 
 # TODO: put into utils, rename file,
 def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30):
@@ -126,6 +128,8 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
     if end_frame is None:
         end_frame = len(final_poses)
 
+    print(len(final_poses))
+
     for i in range(start_frame, end_frame):
         body_pose = final_poses[i][0]
         camera_transform = final_poses[i][1]
@@ -139,11 +143,14 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
             #     r.remove_node("image")
             # r.render_image_from_path(img_path, name="image", scale=est_scale)
 
-        r.render_model(model_anim, body_pose, keep_pose=True, render_joints=False)
-        r.set_group_pose("body", camera_transform)
+        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True, render_joints=False, transforms=camera_transform)
         time.sleep(1 / fps)
 
 '''
 Play the animation.
 '''
-replay_animation(filename)
+anim_file = results_dir + result_prefix + "0.pkl"
+if RUN_OPTIMIZATION:
+    anim_file = filename
+
+replay_animation(anim_file)
