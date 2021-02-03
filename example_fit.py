@@ -86,7 +86,7 @@ sample_transforms = [
 l = SMPLyModel(conf['modelPath'])
 model = l.create_model()
 keypoints, conf = dataset[sample_index]
-img_path = "./samples/" + str(sample_index + 1).zfill(3) + ".png"
+img_path = "./samples/" + str(sample_index) + ".png"
 print(img_path)
 # ---------------------------------
 # Generate model and get joints
@@ -172,12 +172,12 @@ print("using device", device)
 
 train_pose(
     model,
-    learning_rate=1e-2,
+    learning_rate=1e-1,
     keypoints=keypoints,
     keypoint_conf=conf,
     # TODO: use camera_estimation camera here
     camera=camera,
     renderer=r,
     device=device,
-    iterations=60
+    iterations=10
 )

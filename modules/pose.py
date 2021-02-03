@@ -166,9 +166,9 @@ def train_pose(
         pbar.update(1)
 
         if renderer is not None:
-            renderer.render_model(model, pose_layer.cur_out, keep_pose=True)
             R = camera.trans.numpy().squeeze()
-            renderer.set_group_pose("body", R)
+            renderer.render_model_with_tfs(model, pose_layer.cur_out, keep_pose=True, transforms=R)
+            # renderer.set_group_pose("body", R)
 
     pbar.close()
     print("Final result:", loss.item())

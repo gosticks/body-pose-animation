@@ -10,8 +10,8 @@ import pickle
 import time
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 0  # starting index of the frame to optimize for
-FINISH_IDX = 50   # choose a big number to optimize for all frames in samples directory
+START_IDX = 30  # starting index of the frame to optimize for
+FINISH_IDX = 35   # choose a big number to optimize for all frames in samples directory
 
 final_poses = []  # optimized poses array that is saved for playing the animation
 idx = START_IDX
@@ -91,7 +91,7 @@ while get_next_frame(idx) is not None and idx <= FINISH_IDX:
         camera=camera,
         renderer=None,
         device=device,
-        iterations=5
+        iterations=10
     )
 
     print("\nPose optimization of frame", idx, "is finished.")
@@ -113,7 +113,7 @@ with open(filename, "wb") as fp:
     pickle.dump(final_poses, fp)
 print("Results have been saved to", filename)
 
-
+# TODO: put into utils, rename file,
 def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30):
     r = Renderer()
     r.start()
@@ -125,8 +125,6 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
 
     if end_frame is None:
         end_frame = len(final_poses)
-
-    input("Press Enter to start the animation...")
 
     for i in range(start_frame, end_frame):
         body_pose = final_poses[i][0]
@@ -146,6 +144,6 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
         time.sleep(1 / fps)
 
 '''
-Play the animation. Press enter to start the animation.
+Play the animation.
 '''
 replay_animation(filename)
