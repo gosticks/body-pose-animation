@@ -67,7 +67,7 @@ class BodyPose(nn.Module):
     def forward(self, vpose_pose):
 
         bode_output = self.model(
-            body_pose=self.body_pose
+            body_pose=self.body_pose + vpose_pose
         )
 
         # store model output for later renderer usage
@@ -75,7 +75,7 @@ class BodyPose(nn.Module):
 
         joints = bode_output.joints
         # return a list with invalid joints set to zero
-        filtered_joints = joints * self.filter.unsqueeze(0)
+        filtered_joints = joints  # * self.filter.unsqueeze(0)
         return filtered_joints
 
 
@@ -112,8 +112,8 @@ def train_pose(
 
     if optimizer is None:
         parameters = [pose_layer.body_pose, vposer_params]
-        # optimizer = torch.optim.LBFGS(parameters, learning_rate)
-        optimizer = torch.optim.Adam(parameters, learning_rate)
+        optimizer = torch.optim.LBFGS(parameters, learning_rate)
+        # optimizer = torch.optim.Adam(parameters, learning_rate)
 
     pbar = tqdm(total=iterations)
 
@@ -132,11 +132,11 @@ def train_pose(
         joint_loss = loss_layer(points, keypoints)
 
         # apply pose prior loss.
-        prior_loss = poZ.pow(2).sum() * 0.05
+        prior_loss = poZ.pow(2).sum() * 2
 
-        angle_loss = angle_prior_layer(pose_layer.body_pose).sum() ** 2 * 0.05
+        #angle_loss = angle_prior_layer(pose_layer.body_pose).sum() ** 2 * 0.05
 
-        return joint_loss + prior_loss + angle_loss
+        return joint_loss + prior_loss  # + angle_loss
 
     def optim_closure():
         if torch.is_grad_enabled():

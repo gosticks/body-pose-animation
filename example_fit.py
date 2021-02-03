@@ -50,7 +50,7 @@ print("config loaded")
 dataset = SMPLyDataset()
 
 
-sample_index = 1
+sample_index = 2
 
 sample_transforms = [
     [
@@ -179,5 +179,5 @@ train_pose(
     camera=camera,
     renderer=r,
     device=device,
-    iterations=30000
+    iterations=60
 )

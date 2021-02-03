@@ -168,9 +168,8 @@ class TorchCameraEstimate(CameraEstimate):
                     current = per
                 stop = loss > tol
 
-                # FIXME: same error as below
-                # if stop == True:
-                #     stop = self.patience_module(loss, 5)
+                if stop == True:
+                    stop = self.patience_module(loss, 5)
         pbar.update(abs(100 - current))
         pbar.close()
         self.memory = None
@@ -235,15 +234,8 @@ class TorchCameraEstimate(CameraEstimate):
             current = per
             stop = loss > cam_tol
 
-            # FIXME: this does not work for me, here is the error
-            # TypeError: eq() received an invalid combination of arguments - got (NoneType), but expected one of:
-            #  * (Tensor other)
-            #       didn't match because some of the arguments have invalid types: (NoneType)
-            #  * (Number other)
-            #       didn't match because some of the arguments have invalid types: (NoneType)
-
-            # if stop == True:
-            #     stop = self.patience_module(loss, 5)
+            if stop == True:
+                stop = self.patience_module(loss, 5)
 
         pbar.update(100 - current)
         pbar.close()
@@ -291,12 +283,12 @@ class TorchCameraEstimate(CameraEstimate):
         return y_pred
 
     def patience_module(self, variable, counter: int):
-        if self.memory == None:
+        if self.memory is None:
             self.memory = torch.clone(variable)
             self.patience_count = 0
             return True
         if self.patience_count >= counter:
-            self.memory == None
+            self.memory is None
             self.patience_count = 0
             return False
         else:
