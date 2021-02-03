@@ -11,24 +11,23 @@ class SMPLyDataset(Dataset):
     def __init__(
             self,
             root_dir="./samples",
-            raw_img_format="frame-{id}.jpg",
             size: Tuple[int, int] = (1080, 1080),
             model_type="smplx"
     ):
         self.root_dir = root_dir
         self.model_type = model_type
-        self.raw_img_format = raw_img_format
         self.size = size
 
     def __getitem__(self, index):
-        name = str(index + 1).zfill(3) + ".json"
+        name = str(index) + ".json"
         path = os.path.join(
             self.root_dir, name)
-        with open(path) as file:
-            json_data = json.load(file)
-            # FIXME: always take first person for now
-            keypoints = json_data['people'][0]['pose_keypoints_2d']
-        return self.transform(keypoints)
+        if os.path.exists(path):
+            with open(path) as file:
+                json_data = json.load(file)
+                # FIXME: always take first person for now
+                keypoints = json_data['people'][0]['pose_keypoints_2d']
+            return self.transform(keypoints)
         # compute size of dataset based on items in folder
         # it is assumed that each "item" consists of 3 files
 
@@ -51,3 +50,8 @@ class SMPLyDataset(Dataset):
         #     [name for name in os.listdir("./sample") if os.path.isfile(os.path.join("./sample", name))])
         # return num_files / 3
         return 3
+
+    def get_image_path(self, index):
+        name = str(index) + ".png"
+        path = os.path.join(self.root_dir, name)
+        return path

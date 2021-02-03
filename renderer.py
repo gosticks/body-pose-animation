@@ -5,8 +5,6 @@ from smplx import SMPLLayer
 from smplx.body_models import SMPL
 from utils.render import render_model, render_model_with_tfs, render_points, render_camera, render_image_plane
 import pyrender
-from scipy.spatial.transform import Rotation as R
-
 
 class Renderer:
     def __init__(
@@ -133,29 +131,31 @@ class Renderer:
             points ([type]): [description]
             radius (float, optional): [description]. Defaults to 0.005.
             color (list, optional): [description]. Defaults to [0.0, 0.0, 1.0, 1.0].
+            :param transforms:
         """
         self.remove_from_group("body", "body_joints")
 
-        return self.render_points(points, radius, color=color, name="body_joints", group_name="body", transforms=transforms)
+        return self.render_points(points, radius, color=color, name="body_joints", group_name="body",  transforms=transforms)
 
     def render_model(
             self,
             model: SMPLLayer,
-            model_out: SMPL,
+            model_out,
             color=[1.0, 0.3, 0.3, 0.8],
             replace=True,
             keep_pose=True,
-            render_joints=True,
+            render_joints=True
     ):
         if model_out is None:
             model_out = model()
 
         if keep_pose:
             node = self.get_node("body_mesh")
-            if node is not None:
-                original_pose = node.pose
+            #if node is not None:
+                #original_pose = node.pose
 
-        self.render_joints(model_out.joints.detach().cpu().numpy().squeeze())
+        if render_joints:
+            self.render_joints(model_out.joints.detach().cpu().numpy().squeeze())
 
         self.remove_from_group("body", "body_mesh")
 
@@ -182,8 +182,8 @@ class Renderer:
 
         if keep_pose:
             node = self.get_node("body_mesh")
-            if node is not None:
-                original_pose = node.pose
+            #if node is not None:
+                #original_pose = node.pose
 
         self.render_joints(model_out.joints.detach().cpu().numpy().squeeze(), transforms=transforms)
 
@@ -191,19 +191,19 @@ class Renderer:
 
         self.acquire()
         node = render_model_with_tfs(self.scene, model, model_out,
-                            color, "body_mesh", replace=replace, transforms=transforms)
+                                     color, "body_mesh", replace=replace, transforms=transforms)
         self.release()
 
         self.add_to_group("body", node)
         return node
 
-    def render_image_from_path(self, path, scale=1):
+    def render_image_from_path(self, path, name, scale=1):
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.render_image(img, scale)
+        self.render_image(img, scale, name)
 
-    def render_image(self, image, scale):
-        _ = render_image_plane(self.scene, image, scale)
+    def render_image(self, image, scale, name):
+        _ = render_image_plane(self.scene, image, scale, name)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
         # create pose matrix
@@ -255,7 +255,18 @@ class Renderer:
             self.viewer.render_lock.release()
 
     def get_node(self, name):
-        for node in self.scene.get_nodes(name):
+        for node in self.scene.get_nodes(name=name):
             if node is not None:
                 return node
         return None
+
+    def remove_node(self, name):
+        node = self.get_node(name)
+        if node is None:
+            return
+        else:
+            if self.requires_lock():
+                self.viewer.render_lock.acquire()
+            self.scene.remove_node(node)
+            if self.requires_lock():
+                self.viewer.render_lock.release()
