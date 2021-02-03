@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 import yaml
 import os.path
-
+import glob
 
 def load_config():
     with open('./config.yaml') as file:
@@ -92,3 +92,34 @@ def estimate_focal_length(run_estimation: bool = False):
         focal_length = 850
 
     return focal_length
+
+
+# Rename files, later save output of openpose to specific format so that this is not necessary
+def rename_files(dir):
+    idx = 0
+    counter = 0
+    for x in os.listdir(dir):
+        _, ext = x.split('.')
+        try:
+            os.rename(dir + x, dir + str(counter) + "." + ext)
+            idx += 1
+            if idx == 2:
+                counter += 1
+                idx = 0
+        except FileExistsError:
+            print("Files already renamed")
+            break
+
+# Create a new filename by incrementing counter
+def get_new_filename():
+    conf = load_config()
+    results_dir = conf['resultsPath']
+    result_prefix = conf['resultPrefix']
+
+    results = glob.glob(results_dir + "*.pkl")
+    if len(results) == 0:
+        return result_prefix + "0.pkl"
+    else:
+        latest_file = max(results, key=os.path.getctime)
+        num = int(latest_file.split("-")[1].split(".")[0])
+        return result_prefix + str(num + 1) + ".pkl"

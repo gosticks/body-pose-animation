@@ -30,12 +30,41 @@ def render_model(
 
     return scene.add(mesh, name=name, pose=pose)
 
+def render_model_with_tfs(
+    scene,
+    model,
+    model_out,
+    color=[0.3, 0.3, 0.3, 0.8],
+    name=None,
+    replace=False,
+    pose=None,
+    transforms=None
+):
+    vertices = model_out.vertices.detach().cpu().numpy().squeeze()
 
-def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=None):
+    # set vertex colors, maybe use this to highlight accuracies
+    vertex_colors = np.ones([vertices.shape[0], 4]) * color
+
+    # triangulate vertex mesh
+    tri_mesh = trimesh.Trimesh(vertices, model.faces,
+                               vertex_colors=vertex_colors)
+
+    mesh = pyrender.Mesh.from_trimesh(tri_mesh, poses=transforms)
+
+    if name is not None and replace:
+        for node in scene.get_nodes(name=name):
+            scene.remove_node(node)
+
+    return scene.add(mesh, name=name, pose=pose)
+
+
+def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=None, transform=None):
     sm = trimesh.creation.uv_sphere(radius=radius)
     sm.visual.vertex_colors = color
     tfs = np.tile(np.eye(4), (len(points), 1, 1))
     tfs[:, :3, 3] = points
+    if transform is not None:
+        tfs =  transform @ tfs
     pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
     # return the render scene node
     return scene.add(pcl, name=name)

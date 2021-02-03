@@ -1,3 +1,5 @@
 inputPath: ./samples
 modelPath: ./models
 modelFile: ./models/smpl/SMPL_NEUTRAL.pkl
+resultsPath: ./results/
+resultPrefix: result-
