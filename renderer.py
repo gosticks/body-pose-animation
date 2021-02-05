@@ -207,12 +207,12 @@ class Renderer:
         self.add_to_group("body", node)
         return node
 
-    def render_image_from_path(self, path, name, scale=1):
+    def render_image_from_path(self, path: str, name: str = None, scale=1):
         img = cv2.imread(path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.render_image(img, scale, name)
 
-    def render_image(self, image, scale, name):
+    def render_image(self, image, scale, name=None):
         _ = render_image_plane(self.scene, image, scale, name)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
@@ -304,7 +304,7 @@ class DefaultRenderer(Renderer):
             self.render_model(model, model_out)
 
         if render_image and img_path is not None:
-            self.render_image_from_path(img_path, img_scale)
+            self.render_image_from_path(path=img_path, scale=img_scale)
 
         self.keypoints = self.render_points(
             keypoints,

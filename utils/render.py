@@ -30,6 +30,7 @@ def render_model(
 
     return scene.add(mesh, name=name, pose=pose)
 
+
 def render_model_with_tfs(
     scene,
     model,
@@ -64,7 +65,7 @@ def render_points(scene, points, radius=0.005, color=[0.0, 0.0, 1.0, 1.0], name=
     tfs = np.tile(np.eye(4), (len(points), 1, 1))
     tfs[:, :3, 3] = points
     if transform is not None:
-        tfs =  transform @ tfs
+        tfs = transform @ tfs
     pcl = pyrender.Mesh.from_trimesh(sm, poses=tfs)
     # return the render scene node
     return scene.add(pcl, name=name)
@@ -87,9 +88,9 @@ def render_image_plane(scene, image, scale, name=None):
     tm.visual = mat
     tfs = np.eye(4)
     tfs[0, 0] = width / height * scale
-    tfs[1 ,1] *= scale
-    tfs[2 ,2] *= scale
-    tfs[0, 3] = (width / height - 1)* scale
+    tfs[1, 1] *= scale
+    tfs[2, 2] *= scale
+    tfs[0, 3] = (width / height - 1) * scale
     material2 = pyrender.Material(name=name, emissiveTexture=image)
     m = pyrender.Mesh.from_trimesh(tm, poses=tfs)
     return scene.add(m, name=name)
