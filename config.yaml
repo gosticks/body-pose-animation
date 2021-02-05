@@ -1,5 +1,43 @@
-inputPath: ./samples
-modelPath: ./models
-modelFile: ./models/smpl/SMPL_NEUTRAL.pkl
-resultsPath: ./results/
-resultPrefix: result-
+output:
+  rootDir: "./results/"
+  prefix: result-
+smpl:
+  modelRootDir: ./models
+  type: smplx # possible options smplx and smpl
+  gender: MALE # possible options MALE, FEMALE, NEUTRAL
+  ext: npz
+  useVposerInit: false
+data:
+  renameFiles: false
+  rootDir: ./samples
+  personId: 0
+  sampleImageFormat: "%%%.png"
+  sampleNameFormat: "%%%.json"
+  sampleCoords: !!python/tuple [1080, 1080]
+camera:
+  lr: 0.001
+  patience: 10
+  optimizer: Adam
+pose:
+  lr: 0.1
+  optimizer: LBFGS # currently supported Adam, LBFGS
+  iterations: 300
+  useCameraIntrinsics: false
+  useBodyPrior: true
+  useAnglePrior: false
+  useConfWeights: false
+  vposerPath: "./vposer_v1_0"
+preview:
+  enable: true,
+  keypoins:
+    enable: true,
+    radius: 0.01
+    color: 1.0, 0.0, 1.0, 1.0
+  keypoint_torso:
+    enable: true,
+    radius: 0.01
+    color: 1.0, 0.0, 1.0, 1.0
+  joints:
+    enable: true
+    radius: 0.01
+    color: 0.0, 0.7, 0.0, 1.0
