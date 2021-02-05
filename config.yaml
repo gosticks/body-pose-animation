@@ -19,13 +19,33 @@ camera:
   patience: 10
   optimizer: Adam
 pose:
-  lr: 0.1
-  optimizer: LBFGS # currently supported Adam, LBFGS
+  lr: 0.01
+  optimizer: Adam # currently supported Adam, LBFGS
   iterations: 300
   useCameraIntrinsics: false
-  useBodyPrior: true
-  useAnglePrior: false
-  useConfWeights: false
+  bodyPrior:
+    enabled: true
+    weight: 4.0
+  anglePrior:
+    enabled: false
+    weight: 0.01
+    # idxWeights:
+    #   - 0.5
+    #   - 0.5
+    #   - 0.25
+    #   - 0.25
+    # idx:
+    #   - 56 # right elbow
+    #   - 53 # left elbow
+    #   - 12 # right knee
+    #   - 9 # left knee
+    # directions:
+    #   - 1
+    #   - -1
+    #   - -1
+    #   - -1
+  confWeights:
+    enabled: false
   vposerPath: "./vposer_v1_0"
 preview:
   enable: true,

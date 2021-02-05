@@ -1,18 +1,8 @@
-from modules.priors import SMPLifyAnglePrior
-from model import VPoserModel
-from modules.camera import SimpleCamera
-from renderer import Renderer
-from utils.mapping import get_mapping_arr, get_named_joint, get_named_joints
-import time
+
+from utils.mapping import get_mapping_arr
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-import numpy as np
-from smplx.joint_names import JOINT_NAMES
-from smplx import SMPL
-from tqdm import tqdm
-import torchgeometry as tgm
-from human_body_prior.tools.model_loader import load_vposer
 
 
 class JointFilter(nn.Module):

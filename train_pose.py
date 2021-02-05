@@ -1,3 +1,4 @@
+from modules.angle import AnglePriorsLoss
 import smplx
 import torch
 from tqdm import tqdm
@@ -6,7 +7,6 @@ import torchgeometry as tgm
 # internal imports
 from modules.pose import BodyPose
 from modules.filter import JointFilter
-from modules.priors import SMPLifyAnglePrior
 from model import VPoserModel
 from modules.camera import SimpleCamera
 from renderer import Renderer
@@ -18,7 +18,6 @@ def train_pose(
     keypoint_conf,
     camera: SimpleCamera,
     model_type="smplx",
-    loss_layer=torch.nn.MSELoss(),
     learning_rate=1e-3,
     device=torch.device('cuda'),
     dtype=torch.float32,
@@ -28,8 +27,13 @@ def train_pose(
     iterations=60,
     useBodyPrior=True,
     useAnglePrior=True,
-    useConfWeights=True
+    useConfWeights=True,
+    patience=10,
+    body_prior_weight=2,
+    angle_prior_weight=0.5
 ):
+
+    loss_layer = torch.nn.MSELoss()
 
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
@@ -53,7 +57,7 @@ def train_pose(
         parameters.append(vposer_params)
 
     if useAnglePrior:
-        angle_prior_layer = SMPLifyAnglePrior(dtype=dtype, device=device)
+        angle_prior_layer = AnglePriorsLoss(dtype=dtype, device=device)
 
     if optimizer is None:
         if optimizer_type.lower() == "lbfgs":
@@ -84,15 +88,19 @@ def train_pose(
         points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
-        loss = loss_layer(points, keypoints)
+
+        if useConfWeights:
+            distance = points - keypoints
+            loss = distance * (keypoint_conf)
+        else:
+            loss = loss_layer(points, keypoints)
 
         if useBodyPrior:
             # apply pose prior loss.
-            loss = loss + poZ.pow(2).sum() * 2
-
+            loss = loss + poZ.pow(2).sum() * body_prior_weight
         if useAnglePrior:
             loss = loss + \
-                angle_prior_layer(pose_layer.body_pose).sum() ** 2 * 0.05
+                angle_prior_layer(pose_layer.body_pose) * angle_prior_weight
 
         return loss
 
@@ -105,6 +113,13 @@ def train_pose(
         if loss.requires_grad:
             loss.backward()
         return loss
+
+    # store results for optional plotting
+    cur_patience = patience
+    best_loss = None
+    best_pose = None
+
+    loss_history = []
 
     for t in range(iterations):
         optimizer.step(optim_closure)
@@ -119,6 +134,19 @@ def train_pose(
 
         # compute loss
         cur_loss = loss.item()
+
+        loss_history.append(loss)
+
+        if best_loss is None:
+            best_loss = cur_loss
+        elif cur_loss < best_loss:
+            best_loss = cur_loss
+            best_pose = pose_layer.cur_out
+        else:
+            cur_patience = cur_patience - 1
+
+        if patience == 0:
+            print("[train] aborted due to patience limit reached")
 
         pbar.set_description("Error %f" % cur_loss)
         pbar.update(1)
@@ -152,10 +180,12 @@ def train_pose_with_conf(
         device=device,
         dtype=dtype,
         renderer=renderer,
-        useAnglePrior=config['pose']['useAnglePrior'],
-        useBodyPrior=config['pose']['useBodyPrior'],
-        useConfWeights=config['pose']['useConfWeights'],
+        useAnglePrior=config['pose']['anglePrior']['enabled'],
+        useBodyPrior=config['pose']['bodyPrior']['enabled'],
+        useConfWeights=config['pose']['confWeights']['enabled'],
         learning_rate=config['pose']['lr'],
         optimizer_type=config['pose']['optimizer'],
-        iterations=config['pose']['iterations']
+        iterations=config['pose']['iterations'],
+        body_prior_weight=config['pose']['bodyPrior']['weight'],
+        angle_prior_weight=config['pose']['anglePrior']['weight']
     )

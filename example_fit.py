@@ -12,7 +12,7 @@ from dataset import SMPLyDataset
 # load and select sample
 config = load_config()
 dataset = SMPLyDataset.from_config(config=config)
-sample_index = 2
+sample_index = 1
 
 # prepare data and SMPL model
 model = SMPLyModel.model_from_conf(config)

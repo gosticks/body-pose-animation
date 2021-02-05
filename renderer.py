@@ -306,17 +306,20 @@ class DefaultRenderer(Renderer):
         if render_image and img_path is not None:
             self.render_image_from_path(path=img_path, scale=img_scale)
 
-        self.keypoints = self.render_points(
-            keypoints,
-            radius=0.005,
-            color=[1.0, 1.0, 1.0, 1.0])
+        if keypoints is not None:
+            self.keypoints = self.render_points(
+                keypoints,
+                radius=0.005,
+                color=[1.0, 1.0, 1.0, 1.0])
 
-        self.init_keypoints = self.render_keypoints(
-            init_keypoints,
-            radius=0.01,
-            color=[1.0, 0.0, 1.0, 1.0])
+        if init_keypoints is not None:
+            self.init_keypoints = self.render_keypoints(
+                init_keypoints,
+                radius=0.01,
+                color=[1.0, 0.0, 1.0, 1.0])
 
-        self.points = self.render_points(
-            init_joints,
-            radius=0.01,
-            color=[0.0, 0.1, 0.0, 1.0], name="torso", group_name="body")
+        if init_joints is not None:
+            self.points = self.render_points(
+                init_joints,
+                radius=0.01,
+                color=[0.0, 0.1, 0.0, 1.0], name="torso", group_name="body")
