@@ -30,8 +30,13 @@ def train_pose(
     useConfWeights=True,
     patience=10,
     body_prior_weight=2,
-    angle_prior_weight=0.5
+    angle_prior_weight=0.5,
+    body_mean_loss=False,
+    body_mean_weight=0.01
 ):
+
+    print("[pose] starting training")
+    print("[pose] ")
 
     loss_layer = torch.nn.MSELoss()
 
@@ -95,9 +100,16 @@ def train_pose(
         else:
             loss = loss_layer(points, keypoints)
 
+        if body_mean_loss:
+            # apply pose prior loss.
+            # poZ.pow(2).sum() * body_prior_weight
+            loss = loss + (pose_layer.body_pose -
+                           pose_extra).pow(2).sum() * body_mean_weight
+
         if useBodyPrior:
             # apply pose prior loss.
             loss = loss + poZ.pow(2).sum() * body_prior_weight
+
         if useAnglePrior:
             loss = loss + \
                 angle_prior_layer(pose_layer.body_pose) * angle_prior_weight
@@ -187,5 +199,7 @@ def train_pose_with_conf(
         optimizer_type=config['pose']['optimizer'],
         iterations=config['pose']['iterations'],
         body_prior_weight=config['pose']['bodyPrior']['weight'],
-        angle_prior_weight=config['pose']['anglePrior']['weight']
+        angle_prior_weight=config['pose']['anglePrior']['weight'],
+        body_mean_loss=config['pose']['bodyMeanLoss']['enabled'],
+        body_mean_weight=config['pose']['bodyMeanLoss']['weight']
     )

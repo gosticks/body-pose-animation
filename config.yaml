@@ -19,15 +19,18 @@ camera:
   patience: 10
   optimizer: Adam
 pose:
-  lr: 0.01
+  lr: 0.05
   optimizer: Adam # currently supported Adam, LBFGS
   iterations: 300
   useCameraIntrinsics: false
+  bodyMeanLoss:
+    enabled: false
+    weight: 0.001
   bodyPrior:
     enabled: true
-    weight: 4.0
+    weight: 0.5
   anglePrior:
-    enabled: false
+    enabled: true
     weight: 0.01
     # idxWeights:
     #   - 0.5
