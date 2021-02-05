@@ -2,14 +2,32 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 import smplx
+import os
 from human_body_prior.body_model.body_model_vposer import BodyModelWithPoser
 from human_body_prior.tools.model_loader import load_vposer
+
+
+def get_model_path(type, gender, dir):
+    return os.path.joint(
+        dir,
+        type,
+        type.upper() + "_" +
+        gender.upper() + ".npz")
+
+
+def get_model_path_from_conf(config):
+    return get_model_path(
+        config['smpl']['type'],
+        config['smpl']['gender'],
+        config['smpl']['modelRootDir']
+    )
 
 
 class VPoserModel():
     def __init__(
         self,
         model_type='smpl',
+        body_model_path="./models/smplx/SMPLX_MALE.npz",
         vposer_model_path="./vposer_v1_0",
         ext='npz',
         gender='neutral',
@@ -19,9 +37,9 @@ class VPoserModel():
         sample_shape=False,
         sample_expression=False,
         num_expression_coeffs=10,
-        use_face_contour=False,
         use_vposer=True
     ):
+        self.body_model_path = body_model_path
         self.vposer_model_path = vposer_model_path
         self.model_type = model_type
         self.ext = ext
@@ -39,18 +57,27 @@ class VPoserModel():
     def create_model(self):
 
         self.model = BodyModelWithPoser(
-            bm_path="./models/smplx/SMPLX_MALE.npz",
+            bm_path=self.body_model_path,
             batch_size=1,
             poser_type="vposer",
             smpl_exp_dir=self.vposer_model_path
         )
         return self.model
 
-    def get_vposer_latens(self):
+    def get_vposer_latent(self):
         return self.model.poZ_body
 
     def get_pose(self):
         return self.model.pose_body
+
+    def from_conf(config):
+        model_path = get_model_path_from_conf(config)
+
+        return VPoserModel(
+            model_type=config['smpl']['type'],
+            gender=config['smpl']['gender'],
+            vposer_model_path=config['pose']['vposerPath'],
+            body_model_path=model_path)
 
 
 class SMPLyModel():
@@ -66,7 +93,6 @@ class SMPLyModel():
         sample_shape=False,
         sample_expression=True,
         num_expression_coeffs=10,
-        plotting_module='pyrender',
         use_face_contour=False,
         use_vposer_init=False,
         device=torch.device('cpu')
@@ -80,7 +106,6 @@ class SMPLyModel():
         self.sample_shape = sample_shape
         self.sample_expression = sample_expression
         self.num_expression_coeffs = num_expression_coeffs
-        self.plotting_module = plotting_module
         self.use_face_contour = use_face_contour
         self.create_body_pose = create_body_pose
         self.use_vposer_init = use_vposer_init
@@ -112,3 +137,16 @@ class SMPLyModel():
             num_expression_coeffs=self.num_expression_coeffs,
             ext=self.ext)
         return self.model
+
+    def from_config(config, device=None, dtype=None):
+        return SMPLyModel(
+            model_folder=config['smpl']['modelRootDir'],
+            gender=config['smpl']['gender'],
+            model_type=config['smpl']['type'],
+            ext=config['smpl']['ext'],
+            use_vposer_init=config['smpl']['useVposerInit'],
+            device=device
+        )
+
+    def model_from_conf(config, device=None, dtype=None):
+        return SMPLyModel.from_config(config, device=device, dtype=dtype).create_model()

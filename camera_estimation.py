@@ -299,3 +299,17 @@ class TorchCameraEstimate(CameraEstimate):
                 self.patience_count = 0
                 self.memory = torch.clone(variable)
                 return True
+
+    def get_results(self, device=None, dtype=None):
+        if device is None:
+            device = self.device
+        if dtype is None:
+            dtype = self.dtype
+
+        pose, transform, cam_trans = self.estimate_camera_pos()
+        camera_transformation = transform.clone().detach().to(
+            device=device, dtype=dtype)
+        camera_int = pose.clone().detach().to(device=device, dtype=dtype)
+        camera_params = cam_trans.clone().detach().to(device=device, dtype=dtype)
+
+        return camera_transformation, camera_int, camera_params

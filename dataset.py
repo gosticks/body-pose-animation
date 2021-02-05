@@ -17,26 +17,35 @@ class SMPLyDataset(Dataset):
             person_id=0,
             sample_format="%%%.json",
             start_index=1,
-            # if config provided other values will be ignored
-            config=None,
+            sample_id_pad=None
     ):
         self.root_dir = root_dir
         self.model_type = model_type
         self.size = size
         self.person_id = person_id
-        self.sample_id_pad = sample_format.count('%')
+        if sample_id_pad:
+            self.sample_id_pad = sample_format.count('%')
+        else:
+            self.sample_id_pad = sample_id_pad
         self.start_index = start_index
 
-        if config is not None:
-            self.root_dir = config['data']['path']
-            self.size = config['data']['sampleCoords']
-            self.person_id = config['data']['personId']
-            self.model_type = config['smplType']
-            self.img_format = config['data']['sampleImageFormat']
-            self.sample_id_pad = config['data']['sampleImageFormat'].count('%')
+    def from_config(config):
+        """Create an instance of dataset based on the config
 
-        print(os.path.join(
-            self.root_dir, self.get_item_name(0) + ".json"))
+        Args:
+            config ([type]): configuration object parsed from config.yaml
+
+        Returns:
+            [SMPLyDataset]: Dataset
+        """
+        return SMPLyDataset(
+            root_dir=config['data']['rootDir'],
+            size=config['data']['sampleCoords'],
+            person_id=config['data']['personId'],
+            model_type=config['smpl']['type'],
+            # img_format=config['data']['sampleImageFormat'],
+            sample_id_pad=config['data']['sampleImageFormat'].count('%')
+        )
 
     def get_item_name(self, index):
         if self.sample_id_pad == 0:

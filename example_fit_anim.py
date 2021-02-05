@@ -1,21 +1,24 @@
+import pickle
+import time
+import torch
+
 from dataset import SMPLyDataset
 from model import *
 from utils.general import *
 from renderer import *
-import torch
 from camera_estimation import TorchCameraEstimate
 from modules.camera import SimpleCamera
-from modules.pose import train_pose
-import pickle
-import time
+from train_pose import train_pose_with_conf
 from utils.general import rename_files, get_new_filename
 
 START_IDX = 150  # starting index of the frame to optimize for
 FINISH_IDX = 200   # choose a big number to optimize for all frames in samples directory
-RUN_OPTIMIZATION = False  # if False, only run already saved animation without optimization
+# if False, only run already saved animation without optimization
+RUN_OPTIMIZATION = False
 
 final_poses = []  # optimized poses array that is saved for playing the animation
 idx = START_IDX
+
 
 def get_next_frame(idx):
     """
@@ -30,19 +33,22 @@ def get_next_frame(idx):
     image_path = dataset.get_image_path(idx)
     return keypoints[0], keypoints[1], image_path
 
+
 device = torch.device('cpu')
 dtype = torch.float
 
-dataset = SMPLyDataset()
-conf = load_config()
-model = SMPLyModel(conf['modelPath']).create_model()
+config = load_config()
+dataset = SMPLyDataset.from_config(config)
+model = SMPLyModel.model_from_conf(config)
+
+samples_dir = config['data']['rootDir']
 
 # Rename files in samples directory to uniform format
-samples_dir = conf['inputPath']
-rename_files(samples_dir + "/")
+if config['data']['renameFiles']:
+    rename_files(samples_dir + "/")
 
-results_dir = conf['resultsPath']
-result_prefix = conf['resultPrefix']
+results_dir = config['output']['rootDir']
+result_prefix = config['output']['prefix']
 
 model_out = model()
 joints = model_out.joints.detach().cpu().numpy().squeeze()
@@ -73,27 +79,17 @@ if RUN_OPTIMIZATION:
             est_scale=est_scale
         )
 
-        pose, transform, cam_trans = camera.estimate_camera_pos(visualize=False)
         print("\nCamera optimization of frame", idx, "is finished.")
+        camera = SimpleCamera.from_estimation_cam(camera)
 
-        camera_transformation = transform.clone().detach().to(device=device, dtype=dtype)
-        camera_int = pose.clone().detach().to(device=device, dtype=dtype)
-        camera_params = cam_trans.clone().detach().to(device=device, dtype=dtype)
-        camera = SimpleCamera(dtype, device,
-                              transform_mat=camera_transformation,
-                              #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
-                              )
-
-        final_pose = train_pose(
-            model,
-            learning_rate=1e-2,
+        final_pose = train_pose_with_conf(
+            config=config,
+            model=model,
             keypoints=keypoints,
             keypoint_conf=confidence,
-            # TODO: use camera_estimation camera here
             camera=camera,
             renderer=None,
-            device=device,
-            iterations=10
+            device=device
         )
 
         print("\nPose optimization of frame", idx, "is finished.")
@@ -115,11 +111,13 @@ if RUN_OPTIMIZATION:
     print("Results have been saved to", filename)
 
 # TODO: use current body pose and camera transform for next optimization?
+
+
 def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30):
     r = Renderer()
     r.start()
 
-    model_anim = SMPLyModel(conf['modelPath']).create_model()
+    model_anim = SMPLyModel.model_from_conf(config)
 
     with open(file, "rb") as fp:
         final_poses = pickle.load(fp)
@@ -139,8 +137,10 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
             #     r.remove_node("image")
             # r.render_image_from_path(img_path, name="image", scale=est_scale)
 
-        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True, render_joints=False, transforms=camera_transform)
+        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
+                                render_joints=False, transforms=camera_transform)
         time.sleep(1 / fps)
+
 
 '''
 Play the animation.

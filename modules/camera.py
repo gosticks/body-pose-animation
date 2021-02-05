@@ -1,4 +1,5 @@
 
+from camera_estimation import TorchCameraEstimate
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,10 +24,6 @@ class SimpleCamera(nn.Module):
         self.device = device
         self.model_type = "smplx"
 
-        # create valid joint filter
-        filter = self.get_joint_filter()
-        self.register_buffer("filter", filter)
-
         if camera_intrinsics is not None:
             self.hasCameraTransform = True
             self.register_buffer("cam_int", camera_intrinsics)
@@ -38,34 +35,26 @@ class SimpleCamera(nn.Module):
             self.register_buffer("trans", transform_mat)
             # self.register_buffer("disp_trans", transform_mat)
 
-    def get_joint_filter(self):
-        """OpenPose and SMPL do not have fully matching joint positions,
-            nullify joints not matching between the two. Therefore only matching joints will be
-            affected by the optimization
+    def from_estimation_cam(cam: TorchCameraEstimate, device=None, dtype=None):
+        """utility to create camera module from estimation camera
+
         Args:
-            joints ([type]): a full list of SMPL joints.
+            cam (TorchCameraEstimate): pre trained estimation camera
         """
+        cam_trans, cam_int, cam_params = cam.get_results(
+            device=device, dtype=dtype)
 
-        # create a list with 1s for used joints and 0 for ignored joints
-        mapping = get_mapping_arr(output_format=self.model_type)
-
-        filter_shape = (len(mapping), 2)
-
-        filter = torch.zeros(
-            filter_shape, dtype=self.dtype, device=self.device)
-        for index, valid in enumerate(mapping > -1):
-            if valid:
-                filter[index] += 1
-
-        # print("mapping:", get_named_joints(
-        #     filter.detach().cpu().numpy(), ["shoulder-left", "hand-left", "elbow-left"]))
-        return filter
+        return SimpleCamera(
+            dtype,
+            device,
+            transform_mat=cam_trans,
+            #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
+        ), cam_trans, cam_int, cam_params
 
     def forward(self, points):
         if self.hasTransform:
             proj_points = self.trans @ points.reshape(-1, 4, 1)
             proj_points = proj_points.reshape(1, -1, 4)[:, :, :2] * 1
-            proj_points = proj_points * self.filter
             proj_points = F.pad(proj_points, (0, 1, 0, 0), value=0)
             return proj_points
         if self.hasCameraTransform:

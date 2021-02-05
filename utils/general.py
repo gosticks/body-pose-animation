@@ -1,10 +1,12 @@
 from typing import List, Set, Dict, Tuple, Optional
 from utils.mapping import get_named_joints
+from renderer import DefaultRenderer, Renderer
 import numpy as np
 import cv2
 import yaml
 import os.path
 import glob
+
 
 def load_config():
     with open('./config.yaml') as file:
@@ -111,6 +113,8 @@ def rename_files(dir):
             break
 
 # Create a new filename by incrementing counter
+
+
 def get_new_filename():
     conf = load_config()
     results_dir = conf['resultsPath']
@@ -123,3 +127,43 @@ def get_new_filename():
         latest_file = max(results, key=os.path.getctime)
         num = int(latest_file.split("-")[1].split(".")[0])
         return result_prefix + str(num + 1) + ".pkl"
+
+
+def setup_training(model, dataset, sample_index, renderer=True):
+    keypoints, conf = dataset[sample_index]
+    img_path = dataset.get_image_path(sample_index)
+
+    # ---------------------------------
+    # Generate model and get joints
+    # ---------------------------------
+    model_out = model()
+    joints = model_out.joints.detach().cpu().numpy().squeeze()
+
+    # ---------------------------------
+    # Draw in the joints of interest
+    # ---------------------------------
+    est_scale = estimate_scale(joints, keypoints)
+
+    # apply scaling to keypoints
+    keypoints = keypoints * est_scale
+
+    # integrating Camera Estimation
+
+    init_joints = get_torso(joints)
+    init_keypoints = get_torso(keypoints)
+
+    r = None
+
+    if renderer:
+        # setup renderer
+        r = DefaultRenderer()
+        r.setup(
+            model=model,
+            model_out=model_out,
+            keypoints=keypoints,
+            init_keypoints=init_keypoints,
+            init_joints=init_joints,
+            img_path=img_path,
+            img_scale=est_scale
+        )
+    return init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path

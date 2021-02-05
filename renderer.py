@@ -6,19 +6,24 @@ from smplx.body_models import SMPL
 from utils.render import render_model, render_model_with_tfs, render_points, render_camera, render_image_plane
 import pyrender
 
+
 class Renderer:
     def __init__(
         self,
         camera=None,
         camera_pose=None,
         width=1920,
-        height=1080
+        height=1080,
+        light_color=[0.3, 0.3, 0.3, 1.0]
     ) -> None:
         super().__init__()
         self.run_in_thread = False
         self.scene = pyrender.Scene(
-            ambient_light=[0.3, 0.3, 0.3, 1.0]
+            ambient_light=light_color
         )
+        self.width = width
+        self.height = height
+
         if camera is None:
             camera = pyrender.OrthographicCamera(ymag=1, xmag=1)
 
@@ -39,7 +44,10 @@ class Renderer:
     def start(self,
               use_reymond_lighting=True,
               run_in_thread=True,
-              viewport_size=(1920, 1080)):
+              viewport_size=None):
+
+        if viewport_size is None:
+            viewport_size = (self.width, self.height)
 
         self.run_in_thread = run_in_thread
         self.viewer = pyrender.Viewer(
@@ -151,11 +159,12 @@ class Renderer:
 
         if keep_pose:
             node = self.get_node("body_mesh")
-            #if node is not None:
-                #original_pose = node.pose
+            # if node is not None:
+            #original_pose = node.pose
 
         if render_joints:
-            self.render_joints(model_out.joints.detach().cpu().numpy().squeeze())
+            self.render_joints(
+                model_out.joints.detach().cpu().numpy().squeeze())
 
         self.remove_from_group("body", "body_mesh")
 
@@ -182,10 +191,11 @@ class Renderer:
 
         if keep_pose:
             node = self.get_node("body_mesh")
-            #if node is not None:
-                #original_pose = node.pose
+            # if node is not None:
+            #original_pose = node.pose
 
-        self.render_joints(model_out.joints.detach().cpu().numpy().squeeze(), transforms=transforms)
+        self.render_joints(model_out.joints.detach(
+        ).cpu().numpy().squeeze(), transforms=transforms)
 
         self.remove_from_group("body", "body_mesh")
 
@@ -270,3 +280,43 @@ class Renderer:
             self.scene.remove_node(node)
             if self.requires_lock():
                 self.viewer.render_lock.release()
+
+
+class DefaultRenderer(Renderer):
+    """Utility class for easier default renderer setup
+
+    Args:
+        Renderer ([type]): [description]
+    """
+
+    def setup(
+        self,
+        model,
+        model_out,
+        keypoints=None,
+        init_keypoints=None,
+        init_joints=None,
+        img_path=None,
+        img_scale=1,
+        start=True
+    ):
+        if model is not None and model_out is not None:
+            self.render_model(model, model_out)
+
+        if img_path is not None:
+            self.render_image_from_path(img_path, 0.5)
+
+        self.keypoints = self.render_points(
+            keypoints,
+            radius=0.005,
+            color=[1.0, 1.0, 1.0, 1.0])
+
+        self.init_keypoints = self.render_keypoints(
+            init_keypoints,
+            radius=0.01,
+            color=[1.0, 0.0, 1.0, 1.0])
+
+        self.points = self.render_points(
+            init_joints,
+            radius=0.01,
+            color=[0.0, 0.1, 0.0, 1.0], name="torso", group_name="body")
