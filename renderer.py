@@ -298,13 +298,13 @@ class DefaultRenderer(Renderer):
         init_joints=None,
         img_path=None,
         img_scale=1,
-        start=True
+        render_image=True
     ):
         if model is not None and model_out is not None:
             self.render_model(model, model_out)
 
-        if img_path is not None:
-            self.render_image_from_path(img_path, 0.5)
+        if render_image and img_path is not None:
+            self.render_image_from_path(img_path, img_scale)
 
         self.keypoints = self.render_points(
             keypoints,
