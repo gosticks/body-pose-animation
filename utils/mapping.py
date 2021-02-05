@@ -277,3 +277,27 @@ def openpose_to_opengl_coords(
     ])
 
     return (points, conf)
+
+
+def smpl_to_openpose(print_mapping: True):
+    """Utility for remapping smpl mapping indices to openpose mapping indices. 
+
+    Returns:
+        [type]: [description]
+    """
+    mapping = [55, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
+               8, 1, 4, 7, 56, 57, 58, 59]
+
+    arr = np.ones(127) * -1
+
+    if print_mapping:
+        for i, v in enumerate(mapping):
+            arr[v] = i
+            print(v, i)
+
+        print('[')
+        for i, v in enumerate(arr):
+            print(int(v), ",")
+        print(']')
+
+    return arr
