@@ -59,7 +59,7 @@ def train_pose(
         vposer = VPoserModel()
         vposer_layer = vposer.model
         vposer_params = vposer.get_vposer_latent()
-        parameters.append(vposer_params)
+        # parameters.append(vposer_params)
 
     if useAnglePrior:
         angle_prior_layer = AnglePriorsLoss(dtype=dtype, device=device)
