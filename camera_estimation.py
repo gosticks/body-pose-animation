@@ -1,10 +1,7 @@
 
 # Initial camera estimation based on the torso keypoints obtained from OpenPose.
 
-from utils.mapping import get_named_joints
-from utils.general import get_torso, load_config
-from numpy.core.fromnumeric import transpose
-from torch.autograd import backward
+from utils.general import get_torso
 from dataset import *
 from model import *
 from scipy.spatial.transform import Rotation as R
@@ -302,24 +299,3 @@ class TorchCameraEstimate(CameraEstimate):
                 self.patience_count = 0
                 self.memory = torch.clone(variable)
                 return True
-
-# sample_index = 0
-
-# conf = load_config()
-# dataset = SMPLyDataset()
-# model = SMPLyModel(conf['modelPath']).create_model()
-# keypoints, conf = dataset[sample_index]
-# camera = TorchCameraEstimate(
-#     model,
-#     dataset=dataset,
-#     keypoints=keypoints,
-#     renderer=Renderer(),
-#     device=torch.device('cpu'),
-#     dtype=torch.float32,
-#     image_path="./samples/" + str(sample_index + 1).zfill(3) + ".png"
-
-# )
-# pose, transform = camera.estimate_camera_pos()
-# print("Pose matrix: \n", pose)
-
-# print("Transform matrix: \n", transform)
