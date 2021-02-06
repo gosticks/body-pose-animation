@@ -52,6 +52,14 @@ cam, cam_trans, cam_int, cam_params = SimpleCamera.from_estimation_cam(
 # apply transform to scene
 r.set_group_pose("body", cam_trans.cpu().numpy())
 
+# configure PyTorch device and format
+dtype = torch.float32
+if 'device' in config['pose'] is not None:
+    device = torch.device(config['pose']['device'])
+else:
+    device = torch.device('cpu')
+
+
 # train for pose
 train_pose_with_conf(
     config=config,

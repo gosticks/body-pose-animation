@@ -19,15 +19,16 @@ camera:
   patience: 10
   optimizer: Adam
 pose:
+  # device: cuda
   lr: 0.05
-  optimizer: Adam # currently supported Adam, LBFGS
+  optimizer: LBFGS # currently supported Adam, LBFGS
   iterations: 300
   useCameraIntrinsics: false
   bodyMeanLoss:
     enabled: false
     weight: 0.001
   bodyPrior:
-    enabled: true
+    enabled: false
     weight: 2
   anglePrior:
     enabled: true

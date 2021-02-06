@@ -40,13 +40,17 @@ def train_pose(
 
     loss_layer = torch.nn.MSELoss()
 
+    # make sure camera module is on the correct device
+    camera = camera.to(device=device)
+
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
     # get a list of openpose conf values
     keypoints_conf = torch.tensor(keypoint_conf).to(device)
 
     # create filter layer to ignore unused joints, keypoints during optimization
-    filter_layer = JointFilter(model_type=model_type, filter_dims=3)
+    filter_layer = JointFilter(
+        model_type=model_type, filter_dims=3).to(device=device)
 
     # setup torch modules
     pose_layer = BodyPose(model, dtype=dtype, device=device,
@@ -62,7 +66,8 @@ def train_pose(
         # parameters.append(vposer_params)
 
     if useAnglePrior:
-        angle_prior_layer = AnglePriorsLoss(dtype=dtype, device=device)
+        angle_prior_layer = AnglePriorsLoss(
+            dtype=dtype, device=device).to(device=device)
 
     if optimizer is None:
         if optimizer_type.lower() == "lbfgs":
@@ -164,7 +169,7 @@ def train_pose(
         pbar.update(1)
 
         if renderer is not None:
-            R = camera.trans.numpy().squeeze()
+            R = camera.trans.detach().cpu().numpy().squeeze()
             renderer.render_model_with_tfs(
                 model, pose_layer.cur_out, keep_pose=True, transforms=R)
             # renderer.set_group_pose("body", R)
