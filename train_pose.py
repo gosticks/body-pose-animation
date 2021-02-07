@@ -120,7 +120,7 @@ def train_pose(
         body_prior_loss = 0.0
         if useBodyPrior:
             # apply pose prior loss.
-            body_prior_loss = latent_body.pose_body.pow(
+            body_prior_loss = latent_body.pow(
                 2).sum() * body_prior_weight
 
         angle_prior_loss = 0.0
@@ -192,7 +192,7 @@ def train_pose(
 
     pbar.close()
     print("Final result:", loss.item())
-    return pose_layer.cur_out, best_pose
+    return pose_layer.cur_out, best_pose, loss_history
 
 
 def train_pose_with_conf(

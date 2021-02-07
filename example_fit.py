@@ -1,11 +1,12 @@
 # library imports
 import torch
+import matplotlib.pyplot as plt
 
 # local imports
 from train_pose import train_pose_with_conf
 from modules.camera import SimpleCamera
 from model import SMPLyModel
-from utils.general import load_config, setup_training
+from utils.general import getfilename_from_conf, load_config, setup_training
 from camera_estimation import TorchCameraEstimate
 from dataset import SMPLyDataset
 
@@ -44,7 +45,7 @@ camera.setup_visualization(r.init_keypoints, r.keypoints)
 
 
 # train for pose
-train_pose_with_conf(
+result, best, train_loss = train_pose_with_conf(
     config=config,
     model=model,
     keypoints=keypoints,
@@ -53,3 +54,11 @@ train_pose_with_conf(
     renderer=r,
     device=device,
 )
+
+fig, ax = plt.subplots()
+name = getfilename_from_conf(config=config, index=sample_index)
+ax.plot(train_loss[1::], label='sgd')
+ax.set(xlabel="Training iteration", ylabel="Loss", title='Training loss')
+fig.savefig("results/" + name + ".png")
+ax.legend()
+plt.show()

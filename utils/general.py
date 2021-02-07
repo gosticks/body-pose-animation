@@ -8,6 +8,29 @@ import os.path
 import glob
 
 
+def getfilename_from_conf(config, index):
+    """create a filename containing most training props
+
+    Args:
+        config ([type]): config object
+        index ([type]): sample index
+    """
+
+    name = str(index).zfill(3) + "-" config['pose']['optimizer']
+    name = name + "-lr[" + str(config['pose']['lr']) + "]"
+    name = name + "-it[" + str(config['pose']['iterations'])
+    if config['pose']['anglePrior']['enabled']:
+        name = name + \
+            "-ap[" + str(config['pose']['anglePrior']['weight']) + "]"
+    if config['pose']['bodyPrior']['enabled']:
+        name = name + "-bp[" + str(config['pose']['bodyPrior']['weight']) + "]"
+    if config['pose']['angleSumLoss']['enabled']:
+        name = name + \
+            "-as[" + str(config['pose']['angleSumLoss']['weight']) + "]"
+
+    return name
+
+
 def load_config():
     with open('./config.yaml') as file:
         # The FullLoader parameter handles the conversion from YAML
