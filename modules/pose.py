@@ -30,7 +30,7 @@ class BodyPose(nn.Module):
     def forward(self, pose_extra):
         pose_in = self.body_pose
         if self.useBodyMeanAngles:
-            pose_in = pose_in + pose_extra
+            pose_in = pose_in #+ pose_extra
 
         bode_output = self.model(
             body_pose=pose_in
@@ -39,7 +39,4 @@ class BodyPose(nn.Module):
         # store model output for later renderer usage
         self.cur_out = bode_output
 
-        joints = bode_output.joints
-        # return a list with invalid joints set to zero
-        filtered_joints = joints
-        return filtered_joints
+        return bode_output.joints

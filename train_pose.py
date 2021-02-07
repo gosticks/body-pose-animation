@@ -1,3 +1,4 @@
+from modules.angle_clip import AngleClipper
 from modules.angle import AnglePriorsLoss
 import smplx
 import torch
@@ -36,38 +37,40 @@ def train_pose(
 ):
 
     print("[pose] starting training")
-    print("[pose] ")
+    print("[pose] dtype=", dtype)
 
-    loss_layer = torch.nn.MSELoss()
+    loss_layer = torch.nn.MSELoss().to(device=device, dtype=dtype) #MSELoss()
+
+    clip_loss_layer = AngleClipper().to(device=device, dtype=dtype)
 
     # make sure camera module is on the correct device
-    camera = camera.to(device=device)
+    camera = camera.to(device=device, dtype=dtype)
 
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
     # get a list of openpose conf values
-    keypoints_conf = torch.tensor(keypoint_conf).to(device)
+    keypoints_conf = torch.tensor(keypoint_conf).to(device=device, dtype=dtype)
 
     # create filter layer to ignore unused joints, keypoints during optimization
     filter_layer = JointFilter(
-        model_type=model_type, filter_dims=3).to(device=device)
+        model_type=model_type, filter_dims=4).to(device=device, dtype=dtype)
 
     # setup torch modules
     pose_layer = BodyPose(model, dtype=dtype, device=device,
-                          useBodyMeanAngles=useBodyPrior).to(device)
+                          useBodyMeanAngles=False).to(device=device, dtype=dtype)
 
     parameters = [pose_layer.body_pose]
 
     # loss layers
     if useBodyPrior:
         vposer = VPoserModel()
-        vposer_layer = vposer.model
+        vposer_layer = vposer.model.to(device=device, dtype=dtype)
         vposer_params = vposer.get_vposer_latent()
-        # parameters.append(vposer_params)
+        parameters.append(vposer_params)
 
     if useAnglePrior:
         angle_prior_layer = AnglePriorsLoss(
-            dtype=dtype, device=device).to(device=device)
+            dtype=dtype, device=device)
 
     if optimizer is None:
         if optimizer_type.lower() == "lbfgs":
@@ -78,6 +81,9 @@ def train_pose(
     optimizer = optimizer(parameters, learning_rate)
 
     pbar = tqdm(total=iterations)
+
+    # mean_pose_mode = VPoserModel()
+    # body_mean_pose = mean_pose_mode.get_pose()
 
     def predict():
         pose_extra = None
@@ -92,10 +98,10 @@ def train_pose(
 
         # compute homogeneous coordinates and project them to 2D space
         points = tgm.convert_points_to_homogeneous(body_joints)
+        points = filter_layer(points)
         points = camera(points).squeeze()
 
         # filter out unused joints
-        points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
 
@@ -109,7 +115,7 @@ def train_pose(
             # apply pose prior loss.
             # poZ.pow(2).sum() * body_prior_weight
             loss = loss + (pose_layer.body_pose -
-                           pose_extra).pow(2).sum() * body_mean_weight
+                           body_mean_pose).pow(2).sum() * body_mean_weight
 
         if useBodyPrior:
             # apply pose prior loss.
@@ -119,7 +125,9 @@ def train_pose(
             loss = loss + \
                 angle_prior_layer(pose_layer.body_pose) * angle_prior_weight
 
-        return loss
+        # loss = loss + clip_loss_layer(pose_layer.body_pose)
+
+        return loss 
 
     def optim_closure():
         if torch.is_grad_enabled():
@@ -189,8 +197,16 @@ def train_pose_with_conf(
     dtype=torch.float32,
     renderer: Renderer = None,
 ):
+
+    # configure PyTorch device and format
+    dtype = torch.float64
+    if 'device' in config['pose'] is not None:
+        device = torch.device(config['pose']['device'])
+    else:
+        device = torch.device('cpu')
+
     return train_pose(
-        model=model,
+        model=model.to(dtype=dtype),
         keypoints=keypoints,
         keypoint_conf=keypoint_conf,
         camera=camera,

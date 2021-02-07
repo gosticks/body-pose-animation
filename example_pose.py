@@ -27,6 +27,9 @@ pose[:, 12] = np.pi / 2
 # right knee
 pose[:, 9] = np.pi / 2
 
+# right knee
+pose[:, 24] = np.pi / 2
+
 model_out = model(
     pose=pose
 )

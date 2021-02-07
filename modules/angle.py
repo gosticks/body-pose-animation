@@ -9,7 +9,7 @@ class AnglePriorsLoss(nn.Module):
         dtype=torch.float32,
         angle_idx=[56, 53, 12, 9],
         directions=[1, -1, -1, -1],
-        weights=[0.5, 0.5, 0.25, 0.25]
+        weights=[1.0, 1.0, 1.0, 1.0]
     ):
         super(AnglePriorsLoss, self).__init__()
 
@@ -41,4 +41,4 @@ class AnglePriorsLoss(nn.Module):
 
         # compute cost based not exponential of angle * direction
         # then use MSE for cost
-        return (torch.exp(angles * self.angle_directions) * self.weights).pow(2).sum()
+        return ((torch.exp(angles * self.angle_directions)) ** 2).sum() 
