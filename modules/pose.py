@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from smplx.joint_names import JOINT_NAMES
-from smplx import SMPL
+from smplx import SMPL, body_models
 
 
 class BodyPose(nn.Module):
@@ -27,16 +27,17 @@ class BodyPose(nn.Module):
         body_pose = nn.Parameter(body_pose, requires_grad=True)
         self.register_parameter("body_pose", body_pose)
 
-    def forward(self, pose_extra):
+    def forward(self, pose_extra=None):
         pose_in = self.body_pose
-        if self.useBodyMeanAngles:
-            pose_in = pose_in #+ pose_extra
+        if pose_extra is not None:
+            pose_in = pose_in + pose_extra
 
         bode_output = self.model(
+            return_full_pose=True,
             body_pose=pose_in
         )
 
         # store model output for later renderer usage
         self.cur_out = bode_output
 
-        return bode_output.joints
+        return bode_output.joints, bode_output.body_pose

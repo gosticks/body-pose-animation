@@ -26,9 +26,11 @@ def train_pose(
     optimizer=None,
     optimizer_type="LBFGS",
     iterations=60,
-    useBodyPrior=True,
-    useAnglePrior=True,
-    useConfWeights=True,
+    useBodyPrior=False,
+    useAnglePrior=False,
+    useConfWeights=False,
+    use_angle_sum_loss=False,
+    angle_sum_weight=0.1,
     patience=10,
     body_prior_weight=2,
     angle_prior_weight=0.5,
@@ -53,7 +55,7 @@ def train_pose(
 
     # create filter layer to ignore unused joints, keypoints during optimization
     filter_layer = JointFilter(
-        model_type=model_type, filter_dims=4).to(device=device, dtype=dtype)
+        model_type=model_type, filter_dims=3).to(device=device, dtype=dtype)
 
     # setup torch modules
     pose_layer = BodyPose(model, dtype=dtype, device=device,
@@ -64,9 +66,12 @@ def train_pose(
     # loss layers
     if useBodyPrior:
         vposer = VPoserModel()
-        vposer_layer = vposer.model.to(device=device, dtype=dtype)
-        vposer_params = vposer.get_vposer_latent()
-        parameters.append(vposer_params)
+        # TODO: handle this in vposer model
+        vposer.model.to(device=device, dtype=dtype)
+        latent_body = vposer.get_pose()
+        latent_pose = vposer.get_vposer_latent()
+
+        parameters.append(latent_pose)
 
     if useAnglePrior:
         angle_prior_layer = AnglePriorsLoss(
@@ -82,26 +87,22 @@ def train_pose(
 
     pbar = tqdm(total=iterations)
 
-    # mean_pose_mode = VPoserModel()
-    # body_mean_pose = mean_pose_mode.get_pose()
-
     def predict():
         pose_extra = None
 
-        if useBodyPrior:
-            body = vposer_layer()
-            poZ = body.poZ_body
-            pose_extra = body.pose_body
+        # if useBodyPrior:
+            # body = vposer_layer()
+            # poZ = body.poZ_body
+            # pose_extra = body.pose_body
+
 
         # return joints based on current model state
-        body_joints = pose_layer(pose_extra)
+        body_joints, cur_pose = pose_layer()
 
         # compute homogeneous coordinates and project them to 2D space
         points = tgm.convert_points_to_homogeneous(body_joints)
-        points = filter_layer(points)
         points = camera(points).squeeze()
-
-        # filter out unused joints
+        points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
 
@@ -111,21 +112,27 @@ def train_pose(
         else:
             loss = loss_layer(points, keypoints)
 
+        body_mean_loss = 0.0
         if body_mean_loss:
-            # apply pose prior loss.
-            # poZ.pow(2).sum() * body_prior_weight
-            loss = loss + (pose_layer.body_pose -
+            body_mean_loss = (cur_pose -
                            body_mean_pose).pow(2).sum() * body_mean_weight
 
+        body_prior_loss = 0.0
         if useBodyPrior:
             # apply pose prior loss.
-            loss = loss + poZ.pow(2).sum() * body_prior_weight
+            body_prior_loss = latent_body.pose_body.pow(2).sum() * body_prior_weight
 
+        angle_prior_loss = 0.0
         if useAnglePrior:
-            loss = loss + \
-                angle_prior_layer(pose_layer.body_pose) * angle_prior_weight
+            angle_prior_loss = torch.sum(
+                angle_prior_layer(cur_pose)) * angle_prior_weight
+            angle_prior_loss
 
-        # loss = loss + clip_loss_layer(pose_layer.body_pose)
+        angle_sum_loss = 0.0
+        if use_angle_sum_loss:
+            angle_sum_loss = clip_loss_layer(cur_pose) * angle_sum_weight
+
+        loss = loss + body_mean_loss + body_prior_loss + angle_prior_loss + angle_sum_loss
 
         return loss 
 
@@ -222,5 +229,7 @@ def train_pose_with_conf(
         body_prior_weight=config['pose']['bodyPrior']['weight'],
         angle_prior_weight=config['pose']['anglePrior']['weight'],
         body_mean_loss=config['pose']['bodyMeanLoss']['enabled'],
-        body_mean_weight=config['pose']['bodyMeanLoss']['weight']
+        body_mean_weight=config['pose']['bodyMeanLoss']['weight'],
+        use_angle_sum_loss=config['pose']['useAngleSumLoss']['enabled'],
+        angle_sum_weight=config['pose']['useAngleSumLoss']['weight']
     )

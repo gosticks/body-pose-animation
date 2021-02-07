@@ -20,7 +20,7 @@ camera:
   optimizer: Adam
 pose:
   # device: cuda
-  lr: 0.001
+  lr: 0.01
   optimizer: Adam # currently supported Adam, LBFGS
   iterations: 500
   useCameraIntrinsics: false
@@ -29,25 +29,13 @@ pose:
     weight: 0.1
   bodyPrior:
     enabled: false
-    weight: 0.01
+    weight: 2.25
   anglePrior:
     enabled: true
+    weight: 0.1
+  angleSumLoss:
+    enabled: true
     weight: 0.01
-    # idxWeights:
-    #   - 0.5
-    #   - 0.5
-    #   - 0.25
-    #   - 0.25
-    # idx:
-    #   - 56 # right elbow
-    #   - 53 # left elbow
-    #   - 12 # right knee
-    #   - 9 # left knee
-    # directions:
-    #   - 1
-    #   - -1
-    #   - -1
-    #   - -1
   confWeights:
     enabled: false
   vposerPath: "./vposer_v1_0"

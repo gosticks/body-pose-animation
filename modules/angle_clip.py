@@ -38,5 +38,5 @@ class AngleClipper(nn.Module):
         penalty = angles[torch.abs(angles) > self.limit] 
 
         # get relevant angles
-        return penalty.sum() * 0.01
+        return penalty.pow(2).sum() * 0.01
 
