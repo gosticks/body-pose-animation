@@ -230,6 +230,6 @@ def train_pose_with_conf(
         angle_prior_weight=config['pose']['anglePrior']['weight'],
         body_mean_loss=config['pose']['bodyMeanLoss']['enabled'],
         body_mean_weight=config['pose']['bodyMeanLoss']['weight'],
-        use_angle_sum_loss=config['pose']['useAngleSumLoss']['enabled'],
-        angle_sum_weight=config['pose']['useAngleSumLoss']['weight']
+        use_angle_sum_loss=config['pose']['angleSumLoss']['enabled'],
+        angle_sum_weight=config['pose']['angleSumLoss']['weight']
     )

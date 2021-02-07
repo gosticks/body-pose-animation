@@ -48,7 +48,7 @@ class SimpleCamera(nn.Module):
             dtype,
             device,
             transform_mat=cam_trans,
-            #   camera_intrinsics=camera_int, camera_trans_rot=camera_params
+              camera_intrinsics=cam_int, camera_trans_rot=cam_params
         ), cam_trans, cam_int, cam_params
 
     def forward(self, points):
@@ -59,7 +59,7 @@ class SimpleCamera(nn.Module):
             return proj_points
         if self.hasCameraTransform:
             proj_points = self.cam_int[:3, :3] @ self.cam_trans_rot[:3,
-                                                                    :] @ points.reshape(-1, 4, 1)
+                                                                    :] @ self.trans @ points.reshape(-1, 4, 1)
             result = proj_points.squeeze(2)
             denomiator = torch.zeros(points.shape[1], 3)
             for i in range(points.shape[1]):

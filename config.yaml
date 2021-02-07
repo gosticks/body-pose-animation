@@ -22,14 +22,14 @@ pose:
   # device: cuda
   lr: 0.01
   optimizer: Adam # currently supported Adam, LBFGS
-  iterations: 500
+  iterations: 100
   useCameraIntrinsics: false
   bodyMeanLoss:
     enabled: false
     weight: 0.1
   bodyPrior:
     enabled: false
-    weight: 2.25
+    weight: 2.0
   anglePrior:
     enabled: true
     weight: 0.1

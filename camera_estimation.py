@@ -180,7 +180,7 @@ class TorchCameraEstimate(CameraEstimate):
         # camera_translation[0,2] = 5 * torch.ones(1)
 
         camera_rotation = torch.tensor(
-            [[1e-5, 1e-5, 1e-5]], requires_grad=True, dtype=self.dtype, device=self.device)
+            [[0,0,0]], requires_grad=False, dtype=self.dtype, device=self.device)
         camera_intrinsics = torch.zeros(
             4, 4, dtype=self.dtype, device=self.device)
         camera_intrinsics[0, 0] = 5
