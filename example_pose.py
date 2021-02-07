@@ -3,12 +3,8 @@ import numpy as np
 
 # local imports
 from renderer import DefaultRenderer
-from train_pose import train_pose_with_conf
-from modules.camera import SimpleCamera
 from model import SMPLyModel
-from utils.general import load_config, setup_training
-from camera_estimation import TorchCameraEstimate
-from dataset import SMPLyDataset
+from utils.general import load_config
 
 # this a simple pose playground with a async renderer for quick prototyping
 

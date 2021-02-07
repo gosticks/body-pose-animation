@@ -23,7 +23,7 @@ pose:
   lr: 0.01
   optimizer: Adam # currently supported Adam, LBFGS
   iterations: 100
-  useCameraIntrinsics: false
+  useCameraIntrinsics: true
   bodyMeanLoss:
     enabled: false
     weight: 0.1

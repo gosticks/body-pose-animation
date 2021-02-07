@@ -1,3 +1,4 @@
+from camera_estimation import TorchCameraEstimate
 from modules.angle_clip import AngleClipper
 from modules.angle import AnglePriorsLoss
 import smplx
@@ -41,7 +42,7 @@ def train_pose(
     print("[pose] starting training")
     print("[pose] dtype=", dtype)
 
-    loss_layer = torch.nn.MSELoss().to(device=device, dtype=dtype) #MSELoss()
+    loss_layer = torch.nn.MSELoss().to(device=device, dtype=dtype)  # MSELoss()
 
     clip_loss_layer = AngleClipper().to(device=device, dtype=dtype)
 
@@ -91,10 +92,9 @@ def train_pose(
         pose_extra = None
 
         # if useBodyPrior:
-            # body = vposer_layer()
-            # poZ = body.poZ_body
-            # pose_extra = body.pose_body
-
+        # body = vposer_layer()
+        # poZ = body.poZ_body
+        # pose_extra = body.pose_body
 
         # return joints based on current model state
         body_joints, cur_pose = pose_layer()
@@ -115,12 +115,13 @@ def train_pose(
         body_mean_loss = 0.0
         if body_mean_loss:
             body_mean_loss = (cur_pose -
-                           body_mean_pose).pow(2).sum() * body_mean_weight
+                              body_mean_pose).pow(2).sum() * body_mean_weight
 
         body_prior_loss = 0.0
         if useBodyPrior:
             # apply pose prior loss.
-            body_prior_loss = latent_body.pose_body.pow(2).sum() * body_prior_weight
+            body_prior_loss = latent_body.pose_body.pow(
+                2).sum() * body_prior_weight
 
         angle_prior_loss = 0.0
         if useAnglePrior:
@@ -130,11 +131,11 @@ def train_pose(
 
         angle_sum_loss = 0.0
         if use_angle_sum_loss:
-            angle_sum_loss = clip_loss_layer(cur_pose) * angle_sum_weight
+            angle_sum_loss = clip_loss_layer(cur_pose)  # * angle_sum_weight
 
         loss = loss + body_mean_loss + body_prior_loss + angle_prior_loss + angle_sum_loss
 
-        return loss 
+        return loss
 
     def optim_closure():
         if torch.is_grad_enabled():
@@ -191,32 +192,44 @@ def train_pose(
 
     pbar.close()
     print("Final result:", loss.item())
-    return pose_layer.cur_out
+    return pose_layer.cur_out, best_pose
 
 
 def train_pose_with_conf(
     config,
+    camera: TorchCameraEstimate,
     model: smplx.SMPL,
     keypoints,
     keypoint_conf,
-    camera: SimpleCamera,
     device=torch.device('cpu'),
     dtype=torch.float32,
     renderer: Renderer = None,
 ):
 
     # configure PyTorch device and format
-    dtype = torch.float64
+    # dtype = torch.float64
     if 'device' in config['pose'] is not None:
         device = torch.device(config['pose']['device'])
     else:
         device = torch.device('cpu')
 
+    # create camera module
+    pose_camera, cam_trans, cam_int, cam_params = SimpleCamera.from_estimation_cam(
+        cam=camera,
+        use_intrinsics=config['pose']['useCameraIntrinsics'],
+        dtype=dtype,
+        device=device,
+    )
+
+    # apply transform to scene
+    if renderer is not None:
+        renderer.set_group_pose("body", cam_trans.cpu().numpy())
+
     return train_pose(
         model=model.to(dtype=dtype),
         keypoints=keypoints,
         keypoint_conf=keypoint_conf,
-        camera=camera,
+        camera=pose_camera,
         device=device,
         dtype=dtype,
         renderer=renderer,

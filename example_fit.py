@@ -42,16 +42,6 @@ camera = TorchCameraEstimate(
 # render camera to the scene
 camera.setup_visualization(r.init_keypoints, r.keypoints)
 
-# run camera optimizer
-cam, cam_trans, cam_int, cam_params = SimpleCamera.from_estimation_cam(
-    camera,
-    dtype=dtype,
-    device=device,
-)
-
-# apply transform to scene
-r.set_group_pose("body", cam_trans.cpu().numpy())
-
 
 # train for pose
 train_pose_with_conf(
@@ -59,7 +49,7 @@ train_pose_with_conf(
     model=model,
     keypoints=keypoints,
     keypoint_conf=conf,
-    camera=cam,
+    camera=camera,
     renderer=r,
     device=device,
 )

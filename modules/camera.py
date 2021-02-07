@@ -8,34 +8,63 @@ from model import *
 from dataset import *
 
 
-class SimpleCamera(nn.Module):
+class TransformCamera(nn.Module):
     def __init__(
         self,
+        transform_mat: torch.Tensor,
         dtype=torch.float32,
         device=None,
-        transform_mat=None,
-        camera_intrinsics=None,
-        camera_trans_rot=None
     ):
-        super(SimpleCamera, self).__init__()
-        self.hasTransform = False
-        self.hasCameraTransform = False
+        super(TransformCamera, self).__init__()
+
         self.dtype = dtype
         self.device = device
-        self.model_type = "smplx"
 
-        if camera_intrinsics is not None:
-            self.hasCameraTransform = True
-            self.register_buffer("cam_int", camera_intrinsics)
-            self.register_buffer("cam_trans_rot", camera_trans_rot)
-            self.register_buffer("trans", transform_mat)
-            # self.register_buffer("disp_trans", camera_trans_rot)
-        elif transform_mat is not None:
-            self.hasTransform = True
-            self.register_buffer("trans", transform_mat)
-            # self.register_buffer("disp_trans", transform_mat)
+        self.register_buffer("trans", transform_mat.to(
+            device=device, dtype=dtype))
 
-    def from_estimation_cam(cam: TorchCameraEstimate, device=None, dtype=None):
+    def forward(self, points):
+        proj_points = self.trans @ points.reshape(-1, 4, 1)
+        proj_points = proj_points.reshape(1, -1, 4)[:, :, :2] * 1
+        proj_points = F.pad(proj_points, (0, 1, 0, 0), value=0)
+        return proj_points
+
+
+class IntrinsicsCamera(nn.Module):
+    def __init__(
+        self,
+        transform_mat: torch.Tensor,
+        camera_intrinsics: torch.Tensor,
+        camera_trans_rot: torch.Tensor,
+        dtype=torch.float32,
+        device=None
+    ):
+        super(IntrinsicsCamera, self).__init__()
+
+        self.dtype = dtype
+        self.device = device
+
+        self.register_buffer("cam_int", camera_intrinsics.to(
+            device=device, dtype=dtype))
+        self.register_buffer("cam_trans_rot", camera_trans_rot.to(
+            device=device, dtype=dtype))
+        self.register_buffer("trans", transform_mat.to(
+            device=device, dtype=dtype))
+
+    def forward(self, points):
+        proj_points = self.cam_int[:3, :3] @ self.cam_trans_rot[:3,
+                                                                :] @ self.trans @ points.reshape(-1, 4, 1)
+        result = proj_points.squeeze(2)
+        denomiator = torch.zeros(points.shape[1], 3)
+        for i in range(points.shape[1]):
+            denomiator[i, :] = result[i, 2]
+        result = result/denomiator
+        result[:, 2] = 0
+        return result
+
+
+class SimpleCamera(nn.Module):
+    def from_estimation_cam(cam: TorchCameraEstimate, use_intrinsics=False, device=None, dtype=None):
         """utility to create camera module from estimation camera
 
         Args:
@@ -44,29 +73,21 @@ class SimpleCamera(nn.Module):
         cam_trans, cam_int, cam_params = cam.get_results(
             device=device, dtype=dtype)
 
-        return SimpleCamera(
-            dtype,
-            device,
-            transform_mat=cam_trans,
-              camera_intrinsics=cam_int, camera_trans_rot=cam_params
-        ), cam_trans, cam_int, cam_params
+        cam_layer = None
 
-    def forward(self, points):
-        if self.hasTransform:
-            proj_points = self.trans @ points.reshape(-1, 4, 1)
-            proj_points = proj_points.reshape(1, -1, 4)[:, :, :2] * 1
-            proj_points = F.pad(proj_points, (0, 1, 0, 0), value=0)
-            return proj_points
-        if self.hasCameraTransform:
-            proj_points = self.cam_int[:3, :3] @ self.cam_trans_rot[:3,
-                                                                    :] @ self.trans @ points.reshape(-1, 4, 1)
-            result = proj_points.squeeze(2)
-            denomiator = torch.zeros(points.shape[1], 3)
-            for i in range(points.shape[1]):
-                denomiator[i, :] = result[i, 2]
-            result = result/denomiator
-            result[:, 2] = 0
-            return result
+        if use_intrinsics:
+            cam_layer = IntrinsicsCamera(
+                transform_mat=cam_trans,
+                camera_intrinsics=cam_int,
+                camera_trans_rot=cam_params,
+                device=device,
+                dtype=dtype,
+            )
+        else:
+            cam_layer = TransformCamera(
+                transform_mat=cam_trans,
+                device=device,
+                dtype=dtype,
+            )
 
-        # scale = (points[:, :, 2] / self.z_scale)
-        # print(points.shape, scale.shape)
+        return cam_layer, cam_trans, cam_int, cam_params

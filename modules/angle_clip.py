@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+
 class AngleClipper(nn.Module):
     def __init__(
         self,
         device=torch.device('cpu'),
         dtype=torch.float32,
-        angle_idx=[24, 10 , 9],
+        angle_idx=[24, 10, 9],
         # directions=[-1, 1, 1, 1],
         weights=[1.0, 1.0, 1.0]
     ):
@@ -35,8 +36,7 @@ class AngleClipper(nn.Module):
 
         angles = pose[:, self.angle_idx]
 
-        penalty = angles[torch.abs(angles) > self.limit] 
+        penalty = angles[torch.abs(angles) > self.limit]
 
         # get relevant angles
         return penalty.pow(2).sum() * 0.01
-
