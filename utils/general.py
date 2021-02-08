@@ -152,7 +152,7 @@ def get_new_filename():
         return result_prefix + str(num + 1) + ".pkl"
 
 
-def setup_training(model, dataset, sample_index, renderer=True):
+def setup_training(model, dataset, sample_index, renderer=True, offscreen=False):
     keypoints, conf = dataset[sample_index]
     img_path = dataset.get_image_path(sample_index)
 
@@ -179,7 +179,7 @@ def setup_training(model, dataset, sample_index, renderer=True):
 
     if renderer:
         # setup renderer
-        r = DefaultRenderer()
+        r = DefaultRenderer(offscreen=offscreen)
         r.setup(
             model=model,
             model_out=model_out,

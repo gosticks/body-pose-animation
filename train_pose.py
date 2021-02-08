@@ -16,31 +16,50 @@ from renderer import Renderer
 
 def train_pose(
     model: smplx.SMPL,
+    # current datapoints
     keypoints,
     keypoint_conf,
+    # 3D to 2D camera layer
     camera: SimpleCamera,
+
+    # model type
     model_type="smplx",
-    learning_rate=1e-3,
+
+    # pytorch config
     device=torch.device('cuda'),
     dtype=torch.float32,
-    renderer: Renderer = None,
+
+    # optimizer settings
     optimizer=None,
     optimizer_type="LBFGS",
+    learning_rate=1e-3,
     iterations=60,
+    patience=10,
+    # configure loss function
     useBodyPrior=False,
+    body_prior_weight=2,
+
     useAnglePrior=False,
-    useConfWeights=False,
+    angle_prior_weight=0.5,
+
     use_angle_sum_loss=False,
     angle_sum_weight=0.1,
-    patience=10,
-    body_prior_weight=2,
-    angle_prior_weight=0.5,
+
     body_mean_loss=False,
-    body_mean_weight=0.01
+    body_mean_weight=0.01,
+
+    useConfWeights=False,
+
+    # renderer options
+    renderer: Renderer = None,
+    render_steps=True,
+    render_offscreen=True
 ):
 
     print("[pose] starting training")
     print("[pose] dtype=", dtype)
+
+    offscreen_step_output = []
 
     loss_layer = torch.nn.MSELoss().to(device=device, dtype=dtype)  # MSELoss()
 
@@ -52,7 +71,7 @@ def train_pose(
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
     # get a list of openpose conf values
-    keypoints_conf = torch.tensor(keypoint_conf).to(device=device, dtype=dtype)
+    # keypoints_conf = torch.tensor(keypoint_conf).to(device=device, dtype=dtype)
 
     # create filter layer to ignore unused joints, keypoints during optimization
     filter_layer = JointFilter(
@@ -89,7 +108,7 @@ def train_pose(
     pbar = tqdm(total=iterations)
 
     def predict():
-        pose_extra = None
+        # pose_extra = None
 
         # if useBodyPrior:
         # body = vposer_layer()
@@ -120,7 +139,7 @@ def train_pose(
         body_prior_loss = 0.0
         if useBodyPrior:
             # apply pose prior loss.
-            body_prior_loss = latent_body.pow(
+            body_prior_loss = latent_pose.pow(
                 2).sum() * body_prior_weight
 
         angle_prior_loss = 0.0
@@ -162,9 +181,6 @@ def train_pose(
             pred = predict()
             loss = optim_closure()
 
-        # if t % 5 == 0:
-        #     time.sleep(5)
-
         # compute loss
         cur_loss = loss.item()
 
@@ -184,15 +200,18 @@ def train_pose(
         pbar.set_description("Error %f" % cur_loss)
         pbar.update(1)
 
-        if renderer is not None:
+        if renderer is not None and render_steps:
             R = camera.trans.detach().cpu().numpy().squeeze()
             renderer.render_model_with_tfs(
                 model, pose_layer.cur_out, keep_pose=True, transforms=R)
+
+            if render_offscreen:
+                offscreen_step_output.append(renderer.get_snapshot())
             # renderer.set_group_pose("body", R)
 
     pbar.close()
     print("Final result:", loss.item())
-    return pose_layer.cur_out, best_pose, loss_history
+    return pose_layer.cur_out, best_pose, loss_history, offscreen_step_output
 
 
 def train_pose_with_conf(
@@ -204,6 +223,7 @@ def train_pose_with_conf(
     device=torch.device('cpu'),
     dtype=torch.float32,
     renderer: Renderer = None,
+    render_steps=True
 ):
 
     # configure PyTorch device and format
@@ -244,5 +264,6 @@ def train_pose_with_conf(
         body_mean_loss=config['pose']['bodyMeanLoss']['enabled'],
         body_mean_weight=config['pose']['bodyMeanLoss']['weight'],
         use_angle_sum_loss=config['pose']['angleSumLoss']['enabled'],
-        angle_sum_weight=config['pose']['angleSumLoss']['weight']
+        angle_sum_weight=config['pose']['angleSumLoss']['weight'],
+        render_steps=render_steps
     )

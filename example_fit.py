@@ -1,4 +1,5 @@
 # library imports
+from utils.render import make_video
 import torch
 import matplotlib.pyplot as plt
 
@@ -21,7 +22,8 @@ init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_tra
     model=model,
     renderer=True,
     dataset=dataset,
-    sample_index=sample_index
+    sample_index=sample_index,
+    offscreen=True
 )
 
 # configure PyTorch device and format
@@ -45,7 +47,7 @@ camera.setup_visualization(r.init_keypoints, r.keypoints)
 
 
 # train for pose
-result, best, train_loss = train_pose_with_conf(
+result, best, train_loss, step_imgs = train_pose_with_conf(
     config=config,
     model=model,
     keypoints=keypoints,
@@ -55,10 +57,17 @@ result, best, train_loss = train_pose_with_conf(
     device=device,
 )
 
-fig, ax = plt.subplots()
-name = getfilename_from_conf(config=config, index=sample_index)
-ax.plot(train_loss[1::], label='sgd')
-ax.set(xlabel="Training iteration", ylabel="Loss", title='Training loss')
-fig.savefig("results/" + name + ".png")
-ax.legend()
-plt.show()
+
+make_video(step_imgs, "test.avi")
+
+# color = r.get_snapshot()
+# plt.imshow(color)
+# plt.show()
+
+# fig, ax = plt.subplots()
+# name = getfilename_from_conf(config=config, index=sample_index)
+# ax.plot(train_loss[1::], label='sgd')
+# ax.set(xlabel="Training iteration", ylabel="Loss", title='Training loss')
+# fig.savefig("results/" + name + ".png")
+# ax.legend()
+# plt.show()

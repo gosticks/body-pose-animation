@@ -14,9 +14,12 @@ class Renderer:
         camera_pose=None,
         width=1920,
         height=1080,
-        light_color=[0.3, 0.3, 0.3, 1.0]
+        light_color=[0.3, 0.3, 0.3, 1.0],
+        offscreen=False
     ) -> None:
         super().__init__()
+
+        self.use_offscreen = offscreen
         self.run_in_thread = False
         self.scene = pyrender.Scene(
             ambient_light=light_color
@@ -50,12 +53,22 @@ class Renderer:
             viewport_size = (self.width, self.height)
 
         self.run_in_thread = run_in_thread
-        self.viewer = pyrender.Viewer(
-            self.scene,
-            run_in_thread=run_in_thread,
-            use_reymond_lighting=use_reymond_lighting,
-            viewport_size=tuple(d // 2 for d in viewport_size)
-        )
+
+        if self.use_offscreen:
+            self.offscreen = pyrender.OffscreenRenderer(
+                # self.scene,
+                # run_in_thread=run_in_thread,
+                # use_reymond_lighting=use_reymond_lighting,
+                viewport_width=(viewport_size[0]),
+                viewport_height=(viewport_size[1])
+            )
+        else:
+            self.viewer = pyrender.Viewer(
+                self.scene,
+                run_in_thread=run_in_thread,
+                use_reymond_lighting=use_reymond_lighting,
+                viewport_size=tuple(d // 2 for d in viewport_size)
+            )
 
     def stop(self):
         self.viewer.close_external()
@@ -63,7 +76,7 @@ class Renderer:
             pass
 
     def requires_lock(self):
-        return self.run_in_thread and self.viewer
+        return not self.use_offscreen and self.run_in_thread and self.viewer
 
     def release(self):
         if self.requires_lock():
@@ -212,8 +225,8 @@ class Renderer:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         self.render_image(img, scale, name)
 
-    def render_image(self, image, scale, name=None):
-        _ = render_image_plane(self.scene, image, scale, name)
+    def render_image(self, image, scale, name="source_img"):
+        self.image = render_image_plane(self.scene, image, scale, name)
 
     def set_homog_group_transform(self, group_name, rotation, translation):
         # create pose matrix
@@ -280,6 +293,27 @@ class Renderer:
             self.scene.remove_node(node)
             if self.requires_lock():
                 self.viewer.render_lock.release()
+
+    def get_snapshot(self, show_image=False, camera_pose=None):
+        """get snapshot of the current renderer, only works in offscreen mode
+        """
+
+        if not self.use_offscreen:
+            print("[error] get_snapshot only works when used with offscreen renderer")
+            return None, None
+
+        if not show_image:
+            self.scene.remove_node(self.image)
+
+        color, depth = self.offscreen.render(
+            self.scene
+        )
+
+        # revert renderer changes
+        if not show_image:
+            self.scene.add_node(self.image)
+
+        return color
 
 
 class DefaultRenderer(Renderer):

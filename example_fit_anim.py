@@ -1,6 +1,8 @@
 import pickle
 import time
+from utils.render import make_video
 import torch
+from tqdm.std import tqdm
 
 from dataset import SMPLyDataset
 from model import *
@@ -17,6 +19,7 @@ FINISH_IDX = 200   # choose a big number to optimize for all frames in samples d
 RUN_OPTIMIZATION = False
 
 final_poses = []  # optimized poses array that is saved for playing the animation
+result_image = []
 idx = START_IDX
 
 
@@ -27,15 +30,15 @@ def get_next_frame(idx):
     :param idx: index of the frame
     :return: tuple of keypoints, conf and image path
     """
-    keypoints = dataset[idx]
+    keypoints, keypoints_conf = dataset[idx]
     if keypoints is None:
         return
     image_path = dataset.get_image_path(idx)
-    return keypoints[0], keypoints[1], image_path
+    return keypoints, keypoints_conf, image_path
 
 
 device = torch.device('cpu')
-dtype = torch.float
+dtype = torch.float32
 
 config = load_config()
 dataset = SMPLyDataset.from_config(config)
@@ -57,16 +60,15 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 Optimization part without visualization
 '''
 if RUN_OPTIMIZATION:
-    while get_next_frame(idx) is not None and idx <= FINISH_IDX:
-        keypoints, confidence, img_path = get_next_frame(idx)
+    for idx in dataset:
 
-        est_scale = estimate_scale(joints, keypoints)
-
-        # apply scaling to keypoints
-        keypoints = keypoints * est_scale
-
-        init_joints = get_torso(joints)
-        init_keypoints = get_torso(keypoints)
+        init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
+            model=model,
+            renderer=True,
+            offscreen=True,
+            dataset=dataset,
+            sample_index=idx
+        )
 
         camera = TorchCameraEstimate(
             model,
@@ -86,9 +88,9 @@ if RUN_OPTIMIZATION:
             config=config,
             model=model,
             keypoints=keypoints,
-            keypoint_conf=confidence,
+            keypoint_conf=conf,
             camera=camera,
-            renderer=None,
+            renderer=r,
             device=device
         )
 
@@ -140,6 +142,31 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
         r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
                                 render_joints=False, transforms=camera_transform)
         time.sleep(1 / fps)
+
+
+def video_from_pkl(filename, video_name):
+    with open(filename, "rb") as fp:
+        final_poses = pickle.load(fp)
+
+    save_to_video(final_poses, video_name)
+
+
+def save_to_video(poses, video_name, fps=30):
+    r = DefaultRenderer(
+        offscreen=True
+    )
+    r.start()
+
+    model_anim = SMPLyModel.model_from_conf(config)
+
+    frames = []
+
+    for body_pose, cam_trans in tqdm(poses):
+        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
+                                render_joints=False, transforms=cam_trans)
+        frames.append(r.get_snapshot(False))
+
+    make_video(frames, video_name, fps)
 
 
 '''
