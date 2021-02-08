@@ -11,7 +11,7 @@ from utils.general import get_new_filename, setup_training
 from camera_estimation import TorchCameraEstimate
 
 
-def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=False, display_result=False):
+def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=True):
     # prepare data and SMPL model
     model = SMPLyModel.model_from_conf(config)
     init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
@@ -34,7 +34,8 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         use_progress_bar=verbose
     )
 
-    camera_transformation, camera_int, camera_params = camera.get_results()
+    camera_transformation, camera_int, camera_params = camera.get_results(
+        visualize=False)
 
     if not offscreen and interactive:
         # render camera to the scene
@@ -52,8 +53,8 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         use_progress_bar=verbose
     )
 
-    if display_result and interactive:
-        r.wait_for_close()
+    # if display_result and interactive:
+    #     r.wait_for_close()
 
     return pose, camera_transformation, loss_history, step_imgs
 

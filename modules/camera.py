@@ -71,7 +71,7 @@ class SimpleCamera(nn.Module):
             cam (TorchCameraEstimate): pre trained estimation camera
         """
         cam_trans, cam_int, cam_params = cam.get_results(
-            device=device, dtype=dtype)
+            device=device, dtype=dtype, visualize=True)
 
         cam_layer = None
 

@@ -12,10 +12,11 @@ dataset = SMPLyDataset.from_config(config=config)
 sample_index = 0
 
 # train for pose
-pose, train_loss, step_imgs = optimize_sample(
+pose, camera_transformation, loss_history, step_imgs = optimize_sample(
     sample_index,
     dataset,
-    config
+    config,
+    interactive=True
 )
 
 
