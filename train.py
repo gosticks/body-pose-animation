@@ -11,9 +11,9 @@ from utils.general import get_new_filename, setup_training
 from camera_estimation import TorchCameraEstimate
 
 
-def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=True):
+def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=True, initial_pose=None):
     # prepare data and SMPL model
-    model = SMPLyModel.model_from_conf(config)
+    model = SMPLyModel.model_from_conf(config, initial_pose=initial_pose)
     init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
         model=model,
         renderer=interactive,
@@ -34,15 +34,12 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         use_progress_bar=verbose
     )
 
-    camera_transformation, camera_int, camera_params = camera.get_results(
-        visualize=False)
-
     if not offscreen and interactive:
         # render camera to the scene
         camera.setup_visualization(r.init_keypoints, r.keypoints)
 
     # train for pose
-    pose, loss_history, step_imgs = train_pose_with_conf(
+    pose, cam_trans, loss_history, step_imgs = train_pose_with_conf(
         config=config,
         model=model,
         keypoints=keypoints,
@@ -50,20 +47,23 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         camera=camera,
         renderer=r,
         device=device,
-        use_progress_bar=verbose
+        use_progress_bar=verbose,
+        render_steps=offscreen
     )
 
     # if display_result and interactive:
     #     r.wait_for_close()
 
-    return pose, camera_transformation, loss_history, step_imgs
+    return pose, cam_trans, loss_history, step_imgs
 
 
 def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.device('cpu'), dtype=torch.float32, offscreen=False, verbose=False, save_to_file=False):
     final_poses = []
 
     if end_idx is None:
-        end_idx = len(dataset)
+        end_idx = len(dataset) - 1
+
+    initial_pose = None
 
     for idx in trange(end_idx - start_idx, desc='Optimizing'):
         idx = start_idx + idx
@@ -72,19 +72,23 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
             idx,
             dataset,
             config,
+            verbose=verbose,
             offscreen=offscreen,
-            interactive=False
+            interactive=verbose,
+            # initial_pose=initial_pose
         )
 
         if verbose:
             print("Optimization of", idx, "frames finished")
 
         # print("\nPose optimization of frame", idx, "is finished.")
-        R = cam_trans.numpy().squeeze()
+        R = cam_trans.cpu().numpy().squeeze()
         idx += 1
 
         # append optimized pose and camera transformation to the array
         final_poses.append((final_pose, R))
+
+        initial_pose = final_pose
 
     filename = None
 

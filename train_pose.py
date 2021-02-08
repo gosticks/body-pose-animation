@@ -58,8 +58,9 @@ def train_pose(
 
     use_progress_bar=True
 ):
-    # print("[pose] starting training")
-    # print("[pose] dtype=", dtype)
+    if use_progress_bar:
+        print("[pose] starting training")
+        print("[pose] dtype=", dtype, device)
 
     offscreen_step_output = []
 
@@ -152,7 +153,7 @@ def train_pose(
 
         angle_sum_loss = 0.0
         if use_angle_sum_loss:
-            angle_sum_loss = clip_loss_layer(cur_pose)  # * angle_sum_weight
+            angle_sum_loss = clip_loss_layer(cur_pose) * angle_sum_weight
 
         loss = loss + body_mean_loss + body_prior_loss + angle_prior_loss + angle_sum_loss
 
@@ -252,7 +253,7 @@ def train_pose_with_conf(
 
     vposer = VPoserModel.from_conf(config)
 
-    return train_pose(
+    best_pose, loss_history, offscreen_step_output = train_pose(
         model=model.to(dtype=dtype),
         keypoints=keypoints,
         keypoint_conf=keypoint_conf,
@@ -276,3 +277,5 @@ def train_pose_with_conf(
         render_steps=render_steps,
         use_progress_bar=use_progress_bar
     )
+
+    return best_pose, cam_trans, loss_history, offscreen_step_output

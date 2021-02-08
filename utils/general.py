@@ -8,15 +8,18 @@ import os.path
 import glob
 
 
-def getfilename_from_conf(config, index):
+def getfilename_from_conf(config, index=None):
     """create a filename containing most training props
 
     Args:
         config ([type]): config object
         index ([type]): sample index
     """
+    name = ""
 
-    name = str(index).zfill(3) + "-" + config['pose']['optimizer']
+    if index is not None:
+        name = str(index).zfill(3)
+    name = name + "-" + config['pose']['optimizer']
     name = name + "-lr[" + str(config['pose']['lr']) + "]"
     name = name + "-it[" + str(config['pose']['iterations'])
     if config['pose']['anglePrior']['enabled']:

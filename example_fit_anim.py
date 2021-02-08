@@ -11,10 +11,10 @@ from utils.general import *
 from renderer import *
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 0  # starting index of the frame to optimize for
-FINISH_IDX = 2   # choose a big number to optimize for all frames in samples directory
+START_IDX = 1  # starting index of the frame to optimize for
+FINISH_IDX = 100   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
-RUN_OPTIMIZATION = False
+RUN_OPTIMIZATION = True
 
 result_image = []
 idx = START_IDX
@@ -55,27 +55,10 @@ if RUN_OPTIMIZATION:
         config,
         START_IDX,
         FINISH_IDX,
+        verbose=False,
         offscreen=True,
         save_to_file=True
     )
-
-
-def save_to_video(poses, video_name, config, fps=30):
-    r = DefaultRenderer(
-        offscreen=True
-    )
-    r.start()
-
-    model_anim = SMPLyModel.model_from_conf(config)
-
-    frames = []
-
-    for body_pose, cam_trans in tqdm(poses):
-        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
-                                render_joints=False, transforms=cam_trans)
-        frames.append(r.get_snapshot())
-
-    make_video(frames, video_name, fps)
 
 # TODO: use current body pose and camera transform for next optimization?
 
@@ -119,5 +102,8 @@ else:
     result_prefix = config['output']['prefix']
     anim_file = results_dir + result_prefix + "0.pkl"
 
-video_from_pkl(anim_file, "test-anim.avi", config)
+video_name = getfilename_from_conf(
+    config) + str(START_IDX) + "-" + str(FINISH_IDX) + ".avi"
+
+video_from_pkl(anim_file, video_name, config)
 replay_animation(anim_file)

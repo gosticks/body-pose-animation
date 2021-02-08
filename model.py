@@ -116,8 +116,7 @@ class SMPLyModel():
         self.use_vposer_init = use_vposer_init
         self.device = device
 
-    def create_model(self):
-        initial_pose = None
+    def create_model(self, initial_pose=None):
         if self.use_vposer_init:
             # sample a valid human shape via vposer
             vp, ps = load_vposer("./vposer_v1_0")
@@ -153,5 +152,5 @@ class SMPLyModel():
             device=device
         )
 
-    def model_from_conf(config, device=None, dtype=None):
-        return SMPLyModel.from_config(config, device=device, dtype=dtype).create_model()
+    def model_from_conf(config, device=None, dtype=None, initial_pose=None):
+        return SMPLyModel.from_config(config, device=device, dtype=dtype).create_model(initial_pose=initial_pose)
