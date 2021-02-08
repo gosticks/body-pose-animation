@@ -8,9 +8,9 @@ class AngleClipper(nn.Module):
         self,
         device=torch.device('cpu'),
         dtype=torch.float32,
-        angle_idx=[24, 10, 9],
+        angle_idx=[24, 25, 26, 10, 11, 13, 14, 9, 1, 56, 53, 12, 9, 37, 40],
         # directions=[-1, 1, 1, 1],
-        weight=0.01
+        weight=1
     ):
         super(AngleClipper, self).__init__()
 
