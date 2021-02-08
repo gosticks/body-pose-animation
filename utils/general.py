@@ -16,7 +16,7 @@ def getfilename_from_conf(config, index):
         index ([type]): sample index
     """
 
-    name = str(index).zfill(3) + "-" config['pose']['optimizer']
+    name = str(index).zfill(3) + "-" + config['pose']['optimizer']
     name = name + "-lr[" + str(config['pose']['lr']) + "]"
     name = name + "-it[" + str(config['pose']['iterations'])
     if config['pose']['anglePrior']['enabled']:
