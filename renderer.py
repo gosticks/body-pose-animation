@@ -24,6 +24,7 @@ class Renderer:
         self.scene = pyrender.Scene(
             ambient_light=light_color
         )
+        self.image = None
         self.width = width
         self.height = height
 
@@ -302,7 +303,7 @@ class Renderer:
             print("[error] get_snapshot only works when used with offscreen renderer")
             return None, None
 
-        if not show_image:
+        if not show_image and self.image is not None:
             self.scene.remove_node(self.image)
 
         color, depth = self.offscreen.render(
@@ -310,7 +311,7 @@ class Renderer:
         )
 
         # revert renderer changes
-        if not show_image:
+        if not show_image and self.image is not None:
             self.scene.add_node(self.image)
 
         return color

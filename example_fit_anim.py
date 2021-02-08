@@ -84,7 +84,7 @@ if RUN_OPTIMIZATION:
         print("\nCamera optimization of frame", idx, "is finished.")
         camera = SimpleCamera.from_estimation_cam(camera)
 
-        final_pose = train_pose_with_conf(
+        cur_pose, final_pose, loss, frames = train_pose_with_conf(
             config=config,
             model=model,
             keypoints=keypoints,
@@ -164,7 +164,7 @@ def save_to_video(poses, video_name, fps=30):
     for body_pose, cam_trans in tqdm(poses):
         r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
                                 render_joints=False, transforms=cam_trans)
-        frames.append(r.get_snapshot(False))
+        frames.append(r.get_snapshot())
 
     make_video(frames, video_name, fps)
 
@@ -176,4 +176,5 @@ anim_file = results_dir + result_prefix + "0.pkl"
 if RUN_OPTIMIZATION:
     anim_file = filename
 
+video_from_pkl(anim_file, "test-anim.avi")
 replay_animation(anim_file)
