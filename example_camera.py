@@ -25,7 +25,6 @@ init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_tra
 
 camera = TorchCameraEstimate(
     model,
-    dataset=dataset,
     keypoints=keypoints,
     renderer=Renderer(),
     device=device,

@@ -10,7 +10,7 @@ class AngleClipper(nn.Module):
         dtype=torch.float32,
         angle_idx=[24, 10, 9],
         # directions=[-1, 1, 1, 1],
-        weights=[1.0, 1.0, 1.0]
+        weight=0.01
     ):
         super(AngleClipper, self).__init__()
 
@@ -28,8 +28,8 @@ class AngleClipper(nn.Module):
 
         # create buffer for weights
         self.register_buffer(
-            "weights",
-            torch.tensor(weights, dtype=dtype).to(device=device)
+            "weight",
+            torch.tensor(weight, dtype=dtype).to(device=device)
         )
 
     def forward(self, pose):
@@ -39,4 +39,4 @@ class AngleClipper(nn.Module):
         penalty = angles[torch.abs(angles) > self.limit]
 
         # get relevant angles
-        return penalty.pow(2).sum() * 0.01
+        return penalty.pow(2).sum() * self.weight

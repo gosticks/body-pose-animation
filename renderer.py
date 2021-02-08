@@ -316,6 +316,10 @@ class Renderer:
 
         return color
 
+    def wait_for_close(self):
+        while self.viewer.is_active:
+            pass
+
 
 class DefaultRenderer(Renderer):
     """Utility class for easier default renderer setup

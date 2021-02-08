@@ -1,28 +1,8 @@
+
 from typing import List, Set, Dict, Tuple, Optional
 import numpy as np
 import trimesh
 import pyrender
-import cv2
-
-from tqdm import tqdm
-
-
-def make_video(images, video_name: str, fps=5):
-
-    images = np.array(images)
-    width = images.shape[2]
-    height = images.shape[1]
-    video = cv2.VideoWriter(
-        video_name, 0, fps, (width, height), True)
-
-    print("creating video with size", width, height)
-
-    for idx in tqdm(range(len(images))):
-        img = images[idx]
-        im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        video.write(im_rgb)
-
-    video.release()
 
 
 def render_model(

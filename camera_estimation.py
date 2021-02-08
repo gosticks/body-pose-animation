@@ -19,7 +19,6 @@ class CameraEstimate:
     def __init__(
             self,
             model: smplx.SMPL,
-            dataset,
             keypoints,
             renderer,
             image_path=None,
@@ -31,7 +30,6 @@ class CameraEstimate:
         self.use_progress_bar = use_progress_bar
         self.verbose = verbose
         self.model = model
-        self.dataset = dataset
         self.output_model = model(return_verts=True)
         self.renderer = renderer
         self.dtype = dtype

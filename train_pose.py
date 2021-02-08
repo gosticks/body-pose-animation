@@ -53,7 +53,6 @@ def train_pose(
     # renderer options
     renderer: Renderer = None,
     render_steps=True,
-    render_offscreen=True,
 
     vposer=None,
 
@@ -209,14 +208,14 @@ def train_pose(
             renderer.render_model_with_tfs(
                 model, pose_layer.cur_out, keep_pose=True, transforms=R)
 
-            if render_offscreen:
+            if renderer.use_offscreen:
                 offscreen_step_output.append(renderer.get_snapshot())
             # renderer.set_group_pose("body", R)
 
     if use_progress_bar:
         pbar.close()
         print("Final result:", loss.item())
-    return pose_layer.cur_out, best_pose, loss_history, offscreen_step_output
+    return best_pose, loss_history, offscreen_step_output
 
 
 def train_pose_with_conf(

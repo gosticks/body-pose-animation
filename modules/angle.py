@@ -40,5 +40,4 @@ class AnglePriorsLoss(nn.Module):
         angles = pose[:, self.angle_idx]
 
         # compute cost based not exponential of angle * direction
-        # then use MSE for cost
-        return torch.exp(angles * self.angle_directions).pow(2).sum() 
+        return torch.exp(angles * self.angle_directions).pow(2).sum()
