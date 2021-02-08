@@ -13,8 +13,8 @@ from modules.camera import SimpleCamera
 from train_pose import train_pose_with_conf
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 150  # starting index of the frame to optimize for
-FINISH_IDX = 200   # choose a big number to optimize for all frames in samples directory
+START_IDX = 0  # starting index of the frame to optimize for
+FINISH_IDX = 50   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
 RUN_OPTIMIZATION = True
 
@@ -60,8 +60,8 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 Optimization part without visualization
 '''
 if RUN_OPTIMIZATION:
-    for idx in trange(100, desc='Optimizing'):
-
+    for idx in trange(FINISH_IDX, desc='Optimizing'):
+        idx = START_IDX + idx
         init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
             model=model,
             renderer=True,
