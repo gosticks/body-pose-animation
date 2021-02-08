@@ -55,7 +55,8 @@ class IntrinsicsCamera(nn.Module):
         proj_points = self.cam_int[:3, :3] @ self.cam_trans_rot[:3,
                                                                 :] @ self.trans @ points.reshape(-1, 4, 1)
         result = proj_points.squeeze(2)
-        denomiator = torch.zeros(points.shape[1], 3)
+        denomiator = torch.zeros(
+            points.shape[1], 3, device=self.device, dtype=self.dtype)
         for i in range(points.shape[1]):
             denomiator[i, :] = result[i, 2]
         result = result/denomiator
