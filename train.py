@@ -11,12 +11,12 @@ from utils.general import get_new_filename, setup_training
 from camera_estimation import TorchCameraEstimate
 
 
-def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, offscreen=False, verbose=False, display_result=False):
+def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=False, display_result=False):
     # prepare data and SMPL model
     model = SMPLyModel.model_from_conf(config)
     init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
         model=model,
-        renderer=True,
+        renderer=interactive,
         dataset=dataset,
         sample_index=sample_index,
         offscreen=offscreen
@@ -36,7 +36,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
 
     camera_transformation, camera_int, camera_params = camera.get_results()
 
-    if not offscreen:
+    if not offscreen and interactive:
         # render camera to the scene
         camera.setup_visualization(r.init_keypoints, r.keypoints)
 
@@ -52,7 +52,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         use_progress_bar=verbose
     )
 
-    if display_result:
+    if display_result and interactive:
         r.wait_for_close()
 
     return pose, camera_transformation, loss_history, step_imgs
@@ -71,7 +71,8 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
             idx,
             dataset,
             config,
-            offscreen=True
+            offscreen=offscreen,
+            interactive=False
         )
 
         if verbose:

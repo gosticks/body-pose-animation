@@ -117,7 +117,7 @@ if RUN_OPTIMIZATION:
 else:
     results_dir = config['output']['rootDir']
     result_prefix = config['output']['prefix']
-    anim_file = results_dir + result_prefix + "3.pkl"
+    anim_file = results_dir + result_prefix + "0.pkl"
 
 video_from_pkl(anim_file, "test-anim.avi", config)
 replay_animation(anim_file)
