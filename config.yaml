@@ -9,10 +9,10 @@ smpl:
   useVposerInit: false
 data:
   renameFiles: false
-  rootDir: ./samples
+  rootDir: ./output
   personId: 0
-  sampleImageFormat: "%%%.png"
-  sampleNameFormat: "%%%.json"
+  sampleImageFormat: "input_%%%%%%%%%%%%_rendered.png"
+  sampleNameFormat: "input_%%%%%%%%%%%%_keypoints.json"
   sampleCoords: !!python/tuple [1080, 1080]
 camera:
   lr: 0.001

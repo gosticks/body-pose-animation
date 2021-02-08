@@ -140,8 +140,8 @@ def rename_files(dir):
 
 def get_new_filename():
     conf = load_config()
-    results_dir = conf['resultsPath']
-    result_prefix = conf['resultPrefix']
+    results_dir = conf['output']['rootDir']
+    result_prefix = conf['output']['prefix']
 
     results = glob.glob(results_dir + "*.pkl")
     if len(results) == 0:

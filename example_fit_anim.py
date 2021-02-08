@@ -2,7 +2,7 @@ import pickle
 import time
 from utils.render import make_video
 import torch
-from tqdm.std import tqdm
+from tqdm.auto import trange
 
 from dataset import SMPLyDataset
 from model import *
@@ -16,7 +16,7 @@ from utils.general import rename_files, get_new_filename
 START_IDX = 150  # starting index of the frame to optimize for
 FINISH_IDX = 200   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
-RUN_OPTIMIZATION = False
+RUN_OPTIMIZATION = True
 
 final_poses = []  # optimized poses array that is saved for playing the animation
 result_image = []
@@ -60,7 +60,7 @@ joints = model_out.joints.detach().cpu().numpy().squeeze()
 Optimization part without visualization
 '''
 if RUN_OPTIMIZATION:
-    for idx in dataset:
+    for idx in trange(100, desc='Optimizing'):
 
         init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
             model=model,
@@ -70,7 +70,9 @@ if RUN_OPTIMIZATION:
             sample_index=idx
         )
 
-        camera = TorchCameraEstimate(
+        r.start()
+
+        cam = TorchCameraEstimate(
             model,
             dataset=dataset,
             keypoints=keypoints,
@@ -78,24 +80,28 @@ if RUN_OPTIMIZATION:
             device=torch.device('cpu'),
             dtype=torch.float32,
             image_path=img_path,
-            est_scale=est_scale
+            est_scale=est_scale,
+            use_progress_bar=False,
+            verbose=False
         )
 
-        print("\nCamera optimization of frame", idx, "is finished.")
-        camera = SimpleCamera.from_estimation_cam(camera)
+        # print("\nCamera optimization of frame", idx, "is finished.")
 
         cur_pose, final_pose, loss, frames = train_pose_with_conf(
             config=config,
             model=model,
             keypoints=keypoints,
             keypoint_conf=conf,
-            camera=camera,
+            camera=cam,
             renderer=r,
-            device=device
+            device=device,
+            use_progress_bar=False
         )
 
-        print("\nPose optimization of frame", idx, "is finished.")
-        R = camera.trans.numpy().squeeze()
+        camera_transformation, camera_int, camera_params = cam.get_results()
+
+        # print("\nPose optimization of frame", idx, "is finished.")
+        R = camera_transformation.numpy().squeeze()
         idx += 1
 
         # append optimized pose and camera transformation to the array

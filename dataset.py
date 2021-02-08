@@ -16,6 +16,7 @@ class SMPLyDataset(Dataset):
             model_type="smplx",
             person_id=0,
             sample_format="%%%.json",
+            image_format="%%%.png",
             start_index=1,
             sample_id_pad=None
     ):
@@ -23,6 +24,8 @@ class SMPLyDataset(Dataset):
         self.model_type = model_type
         self.size = size
         self.person_id = person_id
+        self.image_format = image_format
+        self.sample_format = sample_format
         if sample_id_pad:
             self.sample_id_pad = sample_format.count('%')
         else:
@@ -43,6 +46,8 @@ class SMPLyDataset(Dataset):
             size=config['data']['sampleCoords'],
             person_id=config['data']['personId'],
             model_type=config['smpl']['type'],
+            image_format=config['data']['sampleImageFormat'],
+            sample_format=config['data']['sampleNameFormat'],
             # img_format=config['data']['sampleImageFormat'],
             sample_id_pad=config['data']['sampleImageFormat'].count('%')
         )
@@ -55,8 +60,12 @@ class SMPLyDataset(Dataset):
                 index + self.start_index).zfill(self.sample_id_pad)
         return name
 
+    def get_keypoint_name(self, index):
+        id = self.get_item_name(index)
+        return self.sample_format.replace("%" * len(id), id)
+
     def __getitem__(self, index):
-        name = self.get_item_name(index) + ".json"
+        name = self.get_keypoint_name(index)
         path = os.path.join(
             self.root_dir, name)
         if os.path.exists(path):
@@ -69,7 +78,7 @@ class SMPLyDataset(Dataset):
             return None
 
     def transform(self, data, origin_format="body_25"):
-        """ 
+        """
             transform: transforms the order of an origin array to the target format
         """
 
@@ -85,6 +94,7 @@ class SMPLyDataset(Dataset):
         return sample_count
 
     def get_image_path(self, index):
-        name = self.get_item_name(index) + ".png"
+        id = self.get_item_name(index)
+        name = self.image_format.replace("%" * len(id), id)
         path = os.path.join(self.root_dir, name)
         return path

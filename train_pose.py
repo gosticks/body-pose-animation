@@ -53,11 +53,14 @@ def train_pose(
     # renderer options
     renderer: Renderer = None,
     render_steps=True,
-    render_offscreen=True
-):
+    render_offscreen=True,
 
-    print("[pose] starting training")
-    print("[pose] dtype=", dtype)
+    vposer=None,
+
+    use_progress_bar=True
+):
+    # print("[pose] starting training")
+    # print("[pose] dtype=", dtype)
 
     offscreen_step_output = []
 
@@ -85,7 +88,6 @@ def train_pose(
 
     # loss layers
     if useBodyPrior:
-        vposer = VPoserModel()
         # TODO: handle this in vposer model
         vposer.model.to(device=device, dtype=dtype)
         latent_body = vposer.get_pose()
@@ -105,7 +107,8 @@ def train_pose(
 
     optimizer = optimizer(parameters, learning_rate)
 
-    pbar = tqdm(total=iterations)
+    if use_progress_bar:
+        pbar = tqdm(total=iterations)
 
     def predict():
         # pose_extra = None
@@ -197,8 +200,9 @@ def train_pose(
         if patience == 0:
             print("[train] aborted due to patience limit reached")
 
-        pbar.set_description("Error %f" % cur_loss)
-        pbar.update(1)
+        if use_progress_bar:
+            pbar.set_description("Error %f" % cur_loss)
+            pbar.update(1)
 
         if renderer is not None and render_steps:
             R = camera.trans.detach().cpu().numpy().squeeze()
@@ -209,8 +213,9 @@ def train_pose(
                 offscreen_step_output.append(renderer.get_snapshot())
             # renderer.set_group_pose("body", R)
 
-    pbar.close()
-    print("Final result:", loss.item())
+    if use_progress_bar:
+        pbar.close()
+        print("Final result:", loss.item())
     return pose_layer.cur_out, best_pose, loss_history, offscreen_step_output
 
 
@@ -223,7 +228,8 @@ def train_pose_with_conf(
     device=torch.device('cpu'),
     dtype=torch.float32,
     renderer: Renderer = None,
-    render_steps=True
+    render_steps=True,
+    use_progress_bar=True
 ):
 
     # configure PyTorch device and format
@@ -245,6 +251,8 @@ def train_pose_with_conf(
     if renderer is not None:
         renderer.set_group_pose("body", cam_trans.cpu().numpy())
 
+    vposer = VPoserModel.from_conf(config)
+
     return train_pose(
         model=model.to(dtype=dtype),
         keypoints=keypoints,
@@ -259,11 +267,13 @@ def train_pose_with_conf(
         learning_rate=config['pose']['lr'],
         optimizer_type=config['pose']['optimizer'],
         iterations=config['pose']['iterations'],
+        vposer=vposer,
         body_prior_weight=config['pose']['bodyPrior']['weight'],
         angle_prior_weight=config['pose']['anglePrior']['weight'],
         body_mean_loss=config['pose']['bodyMeanLoss']['enabled'],
         body_mean_weight=config['pose']['bodyMeanLoss']['weight'],
         use_angle_sum_loss=config['pose']['angleSumLoss']['enabled'],
         angle_sum_weight=config['pose']['angleSumLoss']['weight'],
-        render_steps=render_steps
+        render_steps=render_steps,
+        use_progress_bar=use_progress_bar
     )

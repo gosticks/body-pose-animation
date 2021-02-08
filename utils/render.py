@@ -10,7 +10,6 @@ from tqdm import tqdm
 def make_video(images, video_name: str, fps=5):
 
     images = np.array(images)
-    print(images.shape)
     width = images.shape[2]
     height = images.shape[1]
     video = cv2.VideoWriter(

@@ -8,7 +8,7 @@ from human_body_prior.tools.model_loader import load_vposer
 
 
 def get_model_path(type, gender, dir):
-    return os.path.joint(
+    return os.path.join(
         dir,
         type,
         type.upper() + "_" +
@@ -24,6 +24,8 @@ def get_model_path_from_conf(config):
 
 
 class VPoserModel():
+    global_vposer = None
+
     def __init__(
         self,
         model_type='smpl',
@@ -70,14 +72,17 @@ class VPoserModel():
     def get_pose(self):
         return self.model.pose_body
 
-    def from_conf(config):
+    def from_conf(config, use_global=True):
         model_path = get_model_path_from_conf(config)
 
-        return VPoserModel(
-            model_type=config['smpl']['type'],
-            gender=config['smpl']['gender'],
-            vposer_model_path=config['pose']['vposerPath'],
-            body_model_path=model_path)
+        if VPoserModel.global_vposer is None:
+            VPoserModel.global_vposer = VPoserModel(
+                model_type=config['smpl']['type'],
+                gender=config['smpl']['gender'],
+                vposer_model_path=config['pose']['vposerPath'],
+                body_model_path=model_path)
+
+        return VPoserModel.global_vposer
 
 
 class SMPLyModel():

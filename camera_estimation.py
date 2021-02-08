@@ -25,7 +25,11 @@ class CameraEstimate:
             image_path=None,
             dtype=torch.float32,
             device=torch.device("cpu"),
+            verbose=True,
+            use_progress_bar=True,
             est_scale=1):
+        self.use_progress_bar = use_progress_bar
+        self.verbose = verbose
         self.model = model
         self.dataset = dataset
         self.output_model = model(return_verts=True)
@@ -45,7 +49,8 @@ class CameraEstimate:
         return torso_keypoints_2d, torso_keypoints_3d
 
     def visualize_mesh(self, keypoints, smpl_points):
-
+        if self.renderer is None:
+            return
         # hardcoded scaling factor
         # scaling_factor = 1
         # smpl_points /= scaling_factor
@@ -82,8 +87,9 @@ class CameraEstimate:
         current_pose = self.params_to_pose(params)
 
         # TODO: use renderer.py methods
-        self.renderer.scene.set_group_pose("body", current_pose)
-        # self.renderer.scene.set_pose(self.verts, current_pose)
+        if self.renderer is not None:
+            self.renderer.scene.set_group_pose("body", current_pose)
+            # self.renderer.scene.set_pose(self.verts, current_pose)
 
     def params_to_pose(self, params):
         pose = np.eye(4)
@@ -96,7 +102,7 @@ class CameraEstimate:
         translation = np.zeros(3)
         rotation = np.random.rand(3) * 2 * np.pi
         params = np.concatenate((translation, rotation))
-        print(params)
+        # print(params)
 
         init_points_2d, init_points_3d = self.get_torso_keypoints()
 
@@ -104,7 +110,7 @@ class CameraEstimate:
 
         res = minimize(self.sum_of_squares, x0=params, args=(init_points_3d, init_points_2d),
                        callback=self.iteration_callback, tol=1e-4, method="BFGS")
-        print(res)
+        # print(res)
 
         transform_matrix = self.params_to_pose(res.x)
         return transform_matrix
@@ -141,8 +147,10 @@ class TorchCameraEstimate(CameraEstimate):
 
         stop = True
         tol = 3e-4
-        print("Estimating Initial transform...")
-        pbar = tqdm(total=100)
+        if self.verbose:
+            print("Estimating Initial transform...")
+        if self.use_progress_bar:
+            pbar = tqdm(total=100)
         current = 0
         while stop:
             y_pred = self.C(params, init_points_3d_prepared)
@@ -159,18 +167,22 @@ class TorchCameraEstimate(CameraEstimate):
                 if self.renderer is not None:
                     self.renderer.set_group_pose("body", current_pose)
                 per = int((tol/loss*100).item())
-                if per > 100:
-                    pbar.update(abs(100 - current))
-                    current = 100
-                else:
-                    pbar.update(per - current)
-                    current = per
+
+                if self.use_progress_bar:
+                    if per > 100:
+                        pbar.update(abs(100 - current))
+                        current = 100
+                    else:
+                        pbar.update(per - current)
+                        current = per
                 stop = loss > tol
 
                 if stop == True:
                     stop = self.patience_module(loss, 5)
-        pbar.update(abs(100 - current))
-        pbar.close()
+
+        if self.use_progress_bar:
+            pbar.update(abs(100 - current))
+            pbar.close()
         self.memory = None
         transform_matrix = self.torch_params_to_pose(params)
         current_pose = transform_matrix.detach().numpy()
@@ -180,7 +192,7 @@ class TorchCameraEstimate(CameraEstimate):
         # camera_translation[0,2] = 5 * torch.ones(1)
 
         camera_rotation = torch.tensor(
-            [[0,0,0]], requires_grad=False, dtype=self.dtype, device=self.device)
+            [[0, 0, 0]], requires_grad=False, dtype=self.dtype, device=self.device)
         camera_intrinsics = torch.zeros(
             4, 4, dtype=self.dtype, device=self.device)
         camera_intrinsics[0, 0] = 5
@@ -205,8 +217,9 @@ class TorchCameraEstimate(CameraEstimate):
         stop = True
         first = True
         cam_tol = 6e-3
-        print("Estimating Camera transformations...")
-        pbar = tqdm(total=100)
+        # print("Estimating Camera transformations...")
+        if self.use_progress_bar:
+            pbar = tqdm(total=100)
         current = 0
 
         while stop:
@@ -221,15 +234,17 @@ class TorchCameraEstimate(CameraEstimate):
             else:
                 loss.backward()
             opt2.step()
-            if visualize:
+
+            if visualize and self.renderer is not None:
                 self.renderer.scene.set_pose(
                     self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
             per = int((cam_tol/loss*100).item())
 
-            if per > 100:
-                pbar.update(100 - current)
-            else:
-                pbar.update(per - current)
+            if self.use_progress_bar:
+                if per > 100:
+                    pbar.update(100 - current)
+                else:
+                    pbar.update(per - current)
 
             current = per
             stop = loss > cam_tol
@@ -237,8 +252,9 @@ class TorchCameraEstimate(CameraEstimate):
             if stop == True:
                 stop = self.patience_module(loss, 5)
 
-        pbar.update(100 - current)
-        pbar.close()
+        if self.use_progress_bar:
+            pbar.update(100 - current)
+            pbar.close()
         camera_transform_matrix = self.torch_params_to_pose(
             params)
         return camera_intrinsics, transform_matrix, camera_transform_matrix
