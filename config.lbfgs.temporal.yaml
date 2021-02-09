@@ -1,6 +1,6 @@
 output:
   rootDir: "./tests/09-02-21"
-  prefix: ""
+  prefix: result
 smpl:
   modelRootDir: ./models
   type: smplx # possible options smplx and smpl
@@ -20,29 +20,29 @@ camera:
   optimizer: Adam
 pose:
   # device: cuda
-  lr: 0.01
-  optimizer: Adam # currently supported Adam, LBFGS
-  iterations: 150
+  lr: 0.05
+  optimizer: LBFGS # currently supported Adam, LBFGS
+  iterations: 15
   useCameraIntrinsics: true
   bodyMeanLoss:
     enabled: false
     weight: 0.1
   bodyPrior:
-    enabled: false
-    weight: 2.0
+    enabled: true
+    weight: 4.0
   anglePrior:
-    enabled: false
-    weight: 0.01
+    enabled: true
+    weight: 0.0001
   angleSumLoss:
-    enabled: false
-    weight: 0.02
+    enabled: true
+    weight: 0.2
   confWeights:
     enabled: false
   vposerPath: "./vposer_v1_0"
   temporal:
     enabled: true
-    iterations: 30
-    lr: 0.01
+    iterations: 4
+    lr: 0.02
 preview:
   enable: true,
   keypoins:
