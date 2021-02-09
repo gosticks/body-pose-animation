@@ -8,10 +8,13 @@ class AnglePriorsLoss(nn.Module):
         device=torch.device('cpu'),
         dtype=torch.float32,
         angle_idx=[56, 53, 12, 9, 37, 40],
-        directions=[1, -1, -1, -1, 1, -1],
-        weights=[1.0, 1.0, 0.8, 0.8, 0.02, 0.02]
+        directions=[1, 1, -1, -1, 1, -1],
+        global_weight=1,
+        weights=[0.4, 0.4, 0.3, 0.3, 0.01, 0.01]
     ):
         super(AnglePriorsLoss, self).__init__()
+
+        self.has_parameters = False
 
         # angles determined based on
         # angles currently only work with SMPL-X since indices may differ
@@ -32,7 +35,12 @@ class AnglePriorsLoss(nn.Module):
             torch.tensor(weights, dtype=dtype).to(device=device)
         )
 
-    def forward(self, pose):
+        self.register_buffer(
+            "global_weight",
+            torch.tensor(global_weight, dtype=dtype).to(device=device)
+        )
+
+    def forward(self, pose, joints, points, keypoints):
         # compute direction deviation from expected joint rotation directions,
         # e.g. don't rotate the knee joint forwards. Broken knees are not fun.
 
@@ -40,4 +48,4 @@ class AnglePriorsLoss(nn.Module):
         angles = pose[:, self.angle_idx]
 
         # compute cost based not exponential of angle * direction
-        return (torch.exp(angles * self.angle_directions) * self.weights).pow(2).sum()
+        return (torch.exp(angles * self.angle_directions) * self.weights).pow(2).sum() * self.global_weight

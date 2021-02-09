@@ -1,6 +1,8 @@
+from modules.body_prior import BodyPrior
+from modules.angle_sum import AngleSumLoss
 from camera_estimation import TorchCameraEstimate
 from modules.angle_clip import AngleClipper
-from modules.angle import AnglePriorsLoss
+from modules.angle_prior import AnglePriorsLoss
 import smplx
 import torch
 from tqdm import tqdm
@@ -36,25 +38,27 @@ def train_pose(
     iterations=60,
     patience=10,
     # configure loss function
-    useBodyPrior=False,
-    body_prior_weight=2,
+    # useBodyPrior=False,
+    # body_prior_weight=2,
 
-    useAnglePrior=False,
-    angle_prior_weight=0.5,
+    # useAnglePrior=False,
+    # angle_prior_weight=0.5,
 
-    use_angle_sum_loss=False,
-    angle_sum_weight=0.1,
+    # use_angle_sum_loss=False,
+    # angle_sum_weight=0.1,
 
-    body_mean_loss=False,
-    body_mean_weight=0.01,
+    # body_mean_loss=False,
+    # body_mean_weight=0.01,
 
-    useConfWeights=False,
+    # useConfWeights=False,
 
     # renderer options
     renderer: Renderer = None,
     render_steps=True,
 
-    vposer=None,
+    # vposer=None,
+
+    extra_loss_layers=[],
 
     use_progress_bar=True
 ):
@@ -66,8 +70,6 @@ def train_pose(
 
     loss_layer = torch.nn.MSELoss(reduction='sum').to(
         device=device, dtype=dtype)  # MSELoss()
-
-    clip_loss_layer = AngleClipper().to(device=device, dtype=dtype)
 
     # make sure camera module is on the correct device
     camera = camera.to(device=device, dtype=dtype)
@@ -87,18 +89,14 @@ def train_pose(
 
     parameters = [pose_layer.body_pose]
 
-    # loss layers
-    if useBodyPrior:
-        # TODO: handle this in vposer model
-        vposer.model.to(device=device, dtype=dtype)
-        latent_body = vposer.get_pose()
-        latent_pose = vposer.get_vposer_latent()
+    # setup all loss layers
+    for l in extra_loss_layers:
+        # make sure layer is running on the correct device
+        l.to(device=device, dtype=dtype)
 
-        parameters.append(latent_pose)
-
-    if useAnglePrior:
-        angle_prior_layer = AnglePriorsLoss(
-            dtype=dtype, device=device)
+        # register parameters if present
+        if l.has_parameters:
+            parameters = parameters + list(l.parameters())
 
     if optimizer is None:
         if optimizer_type.lower() == "lbfgs":
@@ -112,12 +110,6 @@ def train_pose(
         pbar = tqdm(total=iterations)
 
     def predict():
-        # pose_extra = None
-
-        # if useBodyPrior:
-        # body = vposer_layer()
-        # poZ = body.poZ_body
-        # pose_extra = body.pose_body
 
         # return joints based on current model state
         body_joints, cur_pose = pose_layer()
@@ -128,36 +120,12 @@ def train_pose(
         points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
+        loss = loss_layer(points, keypoints)
 
-        if useConfWeights:
-            distance = points - keypoints
-            loss = distance * (keypoint_conf)
-        else:
-            loss = loss_layer(points, keypoints)
-
-        body_mean_loss = 0.0
-        if body_mean_loss:
-            body_mean_loss = (cur_pose -
-                              body_mean_pose).pow(2).sum() * body_mean_weight
-
-        body_prior_loss = 0.0
-        if useBodyPrior:
-            # apply pose prior loss.
-            body_prior_loss = latent_pose.pow(
-                2).sum() * body_prior_weight
-
-        angle_prior_loss = 0.0
-        if useAnglePrior:
-            angle_prior_loss = torch.sum(
-                angle_prior_layer(cur_pose)) * angle_prior_weight
-            angle_prior_loss
-
-        angle_sum_loss = 0.0
-        if use_angle_sum_loss:
-            angle_sum_loss = clip_loss_layer(cur_pose) * angle_sum_weight
-
-        loss = loss + body_mean_loss + body_prior_loss + angle_prior_loss + angle_sum_loss
-
+        # apply extra losses
+        for l in extra_loss_layers:
+            loss = loss + l(cur_pose, body_joints, points,
+                            keypoints)
         return loss
 
     def optim_closure():
@@ -178,12 +146,7 @@ def train_pose(
     loss_history = []
 
     for t in range(iterations):
-        optimizer.step(optim_closure)
-
-        # LBFGS does not return the result, therefore we should rerun the model to get it
-        with torch.no_grad():
-            pred = predict()
-            loss = optim_closure()
+        loss = optimizer.step(optim_closure)
 
         # compute loss
         cur_loss = loss.item()
@@ -220,6 +183,45 @@ def train_pose(
     return best_output, loss_history, offscreen_step_output
 
 
+def get_loss_layers(config, device, dtype):
+    """ Utility method to create loss layers based on a config file
+
+    Args:
+        config ([type]): [description]
+        device ([type]): [description]
+        dtype ([type]): [description]
+    """
+    extra_loss_layers = []
+
+    if config['pose']['bodyPrior']['enabled']:
+
+        vmodel = VPoserModel.from_conf(config)
+        extra_loss_layers.append(BodyPrior(
+            device=device,
+            dtype=dtype,
+            vmodel=vmodel,
+            weight=config['pose']['bodyPrior']['weight']))
+
+    if config['pose']['anglePrior']['enabled']:
+        extra_loss_layers.append(AnglePriorsLoss(
+            device=device,
+            dtype=dtype))
+
+    if config['pose']['angleSumLoss']['enabled']:
+        extra_loss_layers.append(AngleSumLoss(
+            device=device,
+            dtype=dtype,
+            weight=config['pose']['angleSumLoss']['weight']))
+
+    if config['pose']['angleLimitLoss']['enabled']:
+        extra_loss_layers.append(AngleClipper(
+            device=device,
+            dtype=dtype,
+            weight=config['pose']['angleLimitLoss']['weight']))
+
+    return extra_loss_layers
+
+
 def train_pose_with_conf(
     config,
     camera: TorchCameraEstimate,
@@ -230,7 +232,8 @@ def train_pose_with_conf(
     dtype=torch.float32,
     renderer: Renderer = None,
     render_steps=True,
-    use_progress_bar=True
+    use_progress_bar=True,
+    print_loss_layers=False
 ):
 
     # configure PyTorch device and format
@@ -252,7 +255,10 @@ def train_pose_with_conf(
     if renderer is not None:
         renderer.set_group_pose("body", cam_trans.cpu().numpy())
 
-    vposer = VPoserModel.from_conf(config)
+    loss_layers = get_loss_layers(config, device, dtype)
+
+    if print_loss_layers:
+        print(loss_layers)
 
     best_output, loss_history, offscreen_step_output = train_pose(
         model=model.to(dtype=dtype),
@@ -262,21 +268,12 @@ def train_pose_with_conf(
         device=device,
         dtype=dtype,
         renderer=renderer,
-        useAnglePrior=config['pose']['anglePrior']['enabled'],
-        useBodyPrior=config['pose']['bodyPrior']['enabled'],
-        useConfWeights=config['pose']['confWeights']['enabled'],
-        learning_rate=config['pose']['lr'],
         optimizer_type=config['pose']['optimizer'],
         iterations=config['pose']['iterations'],
-        vposer=vposer,
-        body_prior_weight=config['pose']['bodyPrior']['weight'],
-        angle_prior_weight=config['pose']['anglePrior']['weight'],
-        body_mean_loss=config['pose']['bodyMeanLoss']['enabled'],
-        body_mean_weight=config['pose']['bodyMeanLoss']['weight'],
-        use_angle_sum_loss=config['pose']['angleSumLoss']['enabled'],
-        angle_sum_weight=config['pose']['angleSumLoss']['weight'],
+        learning_rate=config['pose']['lr'],
         render_steps=render_steps,
-        use_progress_bar=use_progress_bar
+        use_progress_bar=use_progress_bar,
+        extra_loss_layers=loss_layers
     )
 
     return best_output, cam_trans, loss_history, offscreen_step_output

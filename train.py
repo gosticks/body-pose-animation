@@ -49,7 +49,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         renderer=r,
         device=device,
         use_progress_bar=verbose,
-        render_steps=offscreen
+        render_steps=(offscreen or interactive)
     )
 
     # if display_result and interactive:

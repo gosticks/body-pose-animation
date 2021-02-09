@@ -14,6 +14,8 @@ class AngleClipper(nn.Module):
     ):
         super(AngleClipper, self).__init__()
 
+        self.has_parameters = False
+
         # angles determined based on
         # angles currently only work with SMPL-X since indices may differ
         angles_idx = torch.tensor(
@@ -22,7 +24,7 @@ class AngleClipper(nn.Module):
                              angles_idx)
 
         # # list of proposed directions
-        limit = torch.tensor(np.pi / 2, dtype=dtype).to(device=device)
+        limit = torch.tensor(np.pi, dtype=dtype).to(device=device)
         self.register_buffer("limit",
                              limit)
 
@@ -32,7 +34,7 @@ class AngleClipper(nn.Module):
             torch.tensor(weight, dtype=dtype).to(device=device)
         )
 
-    def forward(self, pose):
+    def forward(self, pose, joints, points, keypoints):
 
         angles = pose[:, self.angle_idx]
 

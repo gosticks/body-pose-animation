@@ -1,4 +1,5 @@
 # library imports
+import os
 from train import optimize_sample
 import matplotlib.pyplot as plt
 
@@ -10,6 +11,9 @@ from dataset import SMPLyDataset
 config = load_config()
 dataset = SMPLyDataset.from_config(config=config)
 sample_index = 55
+
+if os.getenv('SAMPLE_INDEX') is not None:
+    sample_index = int(os.getenv('SAMPLE_INDEX'))
 
 # train for pose
 pose, camera_transformation, loss_history, step_imgs = optimize_sample(
