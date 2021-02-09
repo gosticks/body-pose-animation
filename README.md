@@ -29,6 +29,8 @@ This should copy and rename the SMPL model to the correct folders. Either way th
         └── SMPLX_NEUTRAL.pkl
 ```
 
+### VPoser
+To use `bodyPrior` in the configuration please download vposer and plate it into `./vposer_v1_0` directory in the project root. Vposer can be downloaded from this link after creating an account with SMPL-X [link](https://psfiles.is.tuebingen.mpg.de/downloads/smplx/vposer_v1_0-zip)
 
 ### Conda Environment
 
@@ -55,6 +57,14 @@ Since pip is trash and does not save imported packages in a file within the proj
 ```bash
 pip freeze > requirements.txt
 ```
+
+## Usage
+
+The project provides sample examples to the usage of the project. These examples can be directly run after installing all required packages. Per default the input data is expected to be located in the `./samples/` folder.
+
+### Input data
+
+The input is expected to be OpenPose keypoints and output images (required for previews). These files should be placed to the samples folder the foldername and the name format of the samples can be configured within the `config.yaml`.
 
 ## Links
 
