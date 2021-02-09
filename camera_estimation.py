@@ -1,6 +1,7 @@
 
 # Initial camera estimation based on the torso keypoints obtained from OpenPose.
 
+import math
 from utils.general import get_torso
 from dataset import *
 from model import *
@@ -81,7 +82,7 @@ class CameraEstimate:
 
     def iteration_callback(self, params):
         time.sleep(0.1)
-        #input("Press a key for next iteration...")
+        # input("Press a key for next iteration...")
         current_pose = self.params_to_pose(params)
 
         # TODO: use renderer.py methods
@@ -164,9 +165,14 @@ class TorchCameraEstimate(CameraEstimate):
 
                 if self.renderer is not None:
                     self.renderer.set_group_pose("body", current_pose)
-                per = int((tol/loss*100).item())
 
                 if self.use_progress_bar:
+                    cur_loss = loss.item()
+                    percentage = (tol / cur_loss * 100)
+                    if math.isnan(percentage):
+                        per = 100
+                    else:
+                        per = int(percentage)
                     if per > 100:
                         pbar.update(abs(100 - current))
                         current = 100
@@ -236,15 +242,15 @@ class TorchCameraEstimate(CameraEstimate):
             if visualize and self.renderer is not None:
                 self.renderer.scene.set_pose(
                     self.camera_renderer, self.torch_params_to_pose(params).detach().numpy())
-            per = int((cam_tol/loss*100).item())
 
             if self.use_progress_bar:
+                per = int((cam_tol/loss*100).item())
                 if per > 100:
                     pbar.update(100 - current)
                 else:
                     pbar.update(per - current)
+                current = per
 
-            current = per
             stop = loss > cam_tol
 
             if stop == True:
