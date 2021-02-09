@@ -6,12 +6,19 @@ from tqdm import tqdm
 import numpy as np
 
 
-def make_video(images, video_name: str, fps=5):
+def make_video(images, video_name: str, fps=5, ext: str = "mp4"):
     images = np.array(images)
     width = images.shape[2]
     height = images.shape[1]
+
+    fourcc = 0
+    if ext == "mp4":
+        fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+
+    video_name = video_name + "." + ext
+
     video = cv2.VideoWriter(
-        video_name, 0, fps, (width, height), True)
+        video_name, fourcc, fps, (width, height), True)
 
     print("creating video with size", width, height)
 
@@ -23,11 +30,10 @@ def make_video(images, video_name: str, fps=5):
     video.release()
 
 
-def video_from_pkl(filename, video_name, config):
+def video_from_pkl(filename, video_name, config, ext: str = "mp4"):
     with open(filename, "rb") as fp:
-        final_poses = pickle.load(fp)
-
-    save_to_video(final_poses, video_name, config)
+        model_outs = pickle.load(fp)
+    save_to_video(model_outs, video_name, config)
 
 
 def save_to_video(poses, video_name, config, fps=30):
