@@ -100,3 +100,4 @@ vposer_v1_0
 *.avi
 results/
 output/
+tests/
