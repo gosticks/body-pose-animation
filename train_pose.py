@@ -205,6 +205,7 @@ def get_loss_layers(config, device, dtype):
     if config['pose']['anglePrior']['enabled']:
         extra_loss_layers.append(AnglePriorsLoss(
             device=device,
+            global_weight=config['pose']['anglePrior']['weight'],
             dtype=dtype))
 
     if config['pose']['angleSumLoss']['enabled']:
