@@ -1,10 +1,7 @@
 import pickle
 import time
 from train import create_animation
-from tqdm import tqdm
-from utils.video import make_video, video_from_pkl
-import torch
-
+from utils.video import video_from_pkl
 from dataset import SMPLyDataset
 from model import *
 from utils.general import *
@@ -27,20 +24,6 @@ dataset = SMPLyDataset.from_config(config)
 model = SMPLyModel.model_from_conf(config)
 
 
-def get_next_frame(idx):
-    """
-    Get keypoints and image_path of the frame given index.
-
-    :param idx: index of the frame
-    :return: tuple of keypoints, conf and image path
-    """
-    keypoints, keypoints_conf = dataset[idx]
-    if keypoints is None:
-        return
-    image_path = dataset.get_image_path(idx)
-    return keypoints, keypoints_conf, image_path
-
-
 # Rename files in samples directory to uniform format
 if config['data']['renameFiles']:
     rename_files(config['data']['rootDir'] + "/")
@@ -57,13 +40,14 @@ if RUN_OPTIMIZATION:
         FINISH_IDX,
         verbose=False,
         offscreen=True,
-        save_to_file=True
+        save_to_file=True,
+        interpolate=True
     )
 
 # TODO: use current body pose and camera transform for next optimization?
 
 
-def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30):
+def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30, interpolated=False):
     r = Renderer()
     r.start()
 
@@ -88,7 +72,7 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
             # r.render_image_from_path(img_path, name="image", scale=est_scale)
 
         r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
-                                render_joints=False, transforms=camera_transform)
+                                render_joints=False, transforms=camera_transform, interpolated=interpolated)
         time.sleep(1 / fps)
 
 
@@ -105,5 +89,5 @@ else:
 video_name = getfilename_from_conf(
     config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
 
-video_from_pkl(anim_file, video_name, config)
-replay_animation(anim_file)
+#video_from_pkl(anim_file, video_name, config)
+replay_animation(anim_file, interpolated=True)

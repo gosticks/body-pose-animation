@@ -193,14 +193,15 @@ class Renderer:
     def render_model_with_tfs(
             self,
             model: SMPLLayer,
-            model_out: SMPL,
+            model_out,
             color=[1.0, 0.3, 0.3, 0.8],
             replace=True,
             keep_pose=True,
             render_joints=True,
-            transforms=None
+            transforms=None,
+            interpolated=False
     ):
-        if model_out is None:
+        if model_out is None and not interpolated:
             model_out = model()
 
         if keep_pose:
@@ -208,14 +209,14 @@ class Renderer:
             # if node is not None:
             #original_pose = node.pose
 
-        self.render_joints(model_out.joints.detach(
-        ).cpu().numpy().squeeze(), transforms=transforms)
+        if not interpolated:
+            self.render_joints(model_out.joints.detach().cpu().numpy().squeeze(), transforms=transforms)
 
         self.remove_from_group("body", "body_mesh")
 
         self.acquire()
         node = render_model_with_tfs(self.scene, model, model_out,
-                                     color, "body_mesh", replace=replace, transforms=transforms)
+                                     color, "body_mesh", replace=replace, transforms=transforms, interpolated=interpolated)
         self.release()
 
         self.add_to_group("body", node)

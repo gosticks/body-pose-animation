@@ -40,9 +40,15 @@ def render_model_with_tfs(
     name=None,
     replace=False,
     pose=None,
-    transforms=None
+    transforms=None,
+    interpolated=False
 ):
-    vertices = model_out.vertices.detach().cpu().numpy().squeeze()
+
+    if not interpolated:
+        vertices = model_out.vertices.detach().cpu().numpy().squeeze()
+    else:
+        # Interpolated frames are passed as a direct array, instead of SMPLXOutput
+        vertices = model_out
 
     # set vertex colors, maybe use this to highlight accuracies
     vertex_colors = np.ones([vertices.shape[0], 4]) * color

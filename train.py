@@ -2,13 +2,13 @@
 import os
 import pickle
 import torch
-from utils.video import make_video
 from tqdm.auto import trange
 
 # local imports
 from train_pose import train_pose_with_conf
 from model import SMPLyModel
-from utils.general import get_new_filename, getfilename_from_conf, setup_training
+from utils.general import getfilename_from_conf, setup_training
+from utils.video import interpolate_poses
 from camera_estimation import TorchCameraEstimate
 
 
@@ -58,7 +58,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
     return best_out, cam_trans, loss_history, step_imgs
 
 
-def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.device('cpu'), dtype=torch.float32, offscreen=False, verbose=False, save_to_file=False):
+def create_animation(dataset, config, start_idx=0, end_idx=None, offscreen=False, verbose=False, save_to_file=False, interpolate=False):
     model_outs = []
     use_temporal_data = config['pose']['temporal']['enabled']
     if end_idx is None:
@@ -99,6 +99,9 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
 
         if use_temporal_data:
             initial_pose = best_out.body_pose.detach().clone().cpu()  # .to(device=device)
+
+    if interpolate:
+        model_outs = interpolate_poses(model_outs)
 
     file_path = None
 
