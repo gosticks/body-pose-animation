@@ -1,4 +1,5 @@
 # library imports
+import os
 import pickle
 import torch
 from utils.video import make_video
@@ -7,7 +8,7 @@ from tqdm.auto import trange
 # local imports
 from train_pose import train_pose_with_conf
 from model import SMPLyModel
-from utils.general import get_new_filename, setup_training
+from utils.general import get_new_filename, getfilename_from_conf, setup_training
 from camera_estimation import TorchCameraEstimate
 
 
@@ -39,7 +40,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         camera.setup_visualization(r.init_keypoints, r.keypoints)
 
     # train for pose
-    pose, cam_trans, loss_history, step_imgs = train_pose_with_conf(
+    best_out, cam_trans, loss_history, step_imgs = train_pose_with_conf(
         config=config,
         model=model,
         keypoints=keypoints,
@@ -54,12 +55,12 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
     # if display_result and interactive:
     #     r.wait_for_close()
 
-    return pose, cam_trans, loss_history, step_imgs
+    return best_out, cam_trans, loss_history, step_imgs
 
 
 def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.device('cpu'), dtype=torch.float32, offscreen=False, verbose=False, save_to_file=False):
-    final_poses = []
-
+    model_outs = []
+    use_temporal_data = config['pose']['temporal']['enabled']
     if end_idx is None:
         end_idx = len(dataset) - 1
 
@@ -68,14 +69,18 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
     for idx in trange(end_idx - start_idx, desc='Optimizing'):
         idx = start_idx + idx
 
-        final_pose, cam_trans, train_loss, step_imgs = optimize_sample(
+        if use_temporal_data and initial_pose is not None:
+            config['pose']['lr'] = config['pose']['temporal']['lr']
+            config['pose']['iterations'] = config['pose']['temporal']['iterations']
+
+        best_out, cam_trans, train_loss, step_imgs = optimize_sample(
             idx,
             dataset,
             config,
             verbose=verbose,
             offscreen=offscreen,
             interactive=verbose,
-            # initial_pose=initial_pose
+            initial_pose=initial_pose
         )
 
         if verbose:
@@ -86,11 +91,12 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
         idx += 1
 
         # append optimized pose and camera transformation to the array
-        final_poses.append((final_pose, R))
+        model_outs.append((best_out, R))
 
-        initial_pose = final_pose
+        if use_temporal_data:
+            initial_pose = best_out.body_pose.detach().clone().cpu()  # .to(device=device)
 
-    filename = None
+    file_path = None
 
     if save_to_file:
         '''
@@ -98,10 +104,19 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
         '''
         results_dir = config['output']['rootDir']
         result_prefix = config['output']['prefix']
-        filename = results_dir + get_new_filename()
-        print("Saving results to", filename)
-        with open(filename, "wb") as fp:
-            pickle.dump(final_poses, fp)
-        print("Results have been saved to", filename)
 
-    return final_poses, filename
+        pkl_name = getfilename_from_conf(config)
+
+        pkl_name = pkl_name + "-" + str(start_idx)
+        if end_idx is not None:
+            pkl_name = pkl_name + "-" + str(end_idx)
+
+        pkl_name = pkl_name + ".pkl"
+
+        file_path = os.path.join(results_dir, pkl_name)
+        print("Saving results to", file_path)
+        with open(file_path, "wb") as fp:
+            pickle.dump(model_outs, fp)
+        print("Results have been saved to", file_path)
+
+    return model_outs, file_path

@@ -64,7 +64,8 @@ def train_pose(
 
     offscreen_step_output = []
 
-    loss_layer = torch.nn.MSELoss().to(device=device, dtype=dtype)  # MSELoss()
+    loss_layer = torch.nn.MSELoss(reduction='sum').to(
+        device=device, dtype=dtype)  # MSELoss()
 
     clip_loss_layer = AngleClipper().to(device=device, dtype=dtype)
 
@@ -172,7 +173,7 @@ def train_pose(
     # store results for optional plotting
     cur_patience = patience
     best_loss = None
-    best_pose = None
+    best_output = None
 
     loss_history = []
 
@@ -193,7 +194,7 @@ def train_pose(
             best_loss = cur_loss
         elif cur_loss < best_loss:
             best_loss = cur_loss
-            best_pose = pose_layer.cur_out
+            best_output = pose_layer.cur_out
         else:
             cur_patience = cur_patience - 1
 
@@ -216,7 +217,7 @@ def train_pose(
     if use_progress_bar:
         pbar.close()
         print("Final result:", loss.item())
-    return best_pose, loss_history, offscreen_step_output
+    return best_output, loss_history, offscreen_step_output
 
 
 def train_pose_with_conf(
@@ -253,7 +254,7 @@ def train_pose_with_conf(
 
     vposer = VPoserModel.from_conf(config)
 
-    best_pose, loss_history, offscreen_step_output = train_pose(
+    best_output, loss_history, offscreen_step_output = train_pose(
         model=model.to(dtype=dtype),
         keypoints=keypoints,
         keypoint_conf=keypoint_conf,
@@ -278,4 +279,4 @@ def train_pose_with_conf(
         use_progress_bar=use_progress_bar
     )
 
-    return best_pose, cam_trans, loss_history, offscreen_step_output
+    return best_output, cam_trans, loss_history, offscreen_step_output

@@ -11,8 +11,8 @@ from utils.general import *
 from renderer import *
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 1  # starting index of the frame to optimize for
-FINISH_IDX = 100   # choose a big number to optimize for all frames in samples directory
+START_IDX = 60  # starting index of the frame to optimize for
+FINISH_IDX = 70   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
 RUN_OPTIMIZATION = True
 
@@ -50,7 +50,7 @@ if config['data']['renameFiles']:
 Optimization part without visualization
 '''
 if RUN_OPTIMIZATION:
-    final_poses, filename = create_animation(
+    model_outs, filename = create_animation(
         dataset,
         config,
         START_IDX,
@@ -70,14 +70,14 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
     model_anim = SMPLyModel.model_from_conf(config)
 
     with open(file, "rb") as fp:
-        final_poses = pickle.load(fp)
+        model_outs = pickle.load(fp)
 
     if end_frame is None:
-        end_frame = len(final_poses)
+        end_frame = len(model_outs)
 
     for i in range(start_frame, end_frame):
-        body_pose = final_poses[i][0]
-        camera_transform = final_poses[i][1]
+        body_pose = model_outs[i][0]
+        camera_transform = model_outs[i][1]
 
         if with_background:
             # Changing image is too jerky, because the image has to be removed and added each time
@@ -103,7 +103,7 @@ else:
     anim_file = results_dir + result_prefix + "0.pkl"
 
 video_name = getfilename_from_conf(
-    config) + str(START_IDX) + "-" + str(FINISH_IDX) + ".avi"
+    config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
 
 video_from_pkl(anim_file, video_name, config)
 replay_animation(anim_file)
