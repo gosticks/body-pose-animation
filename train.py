@@ -90,6 +90,10 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, device=torch.de
         R = cam_trans.cpu().numpy().squeeze()
         idx += 1
 
+        if best_out is None:
+            print("[error] optimizer produced no pose. Skipping frame:", idx)
+            continue
+
         # append optimized pose and camera transformation to the array
         model_outs.append((best_out, R))
 

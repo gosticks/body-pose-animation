@@ -68,7 +68,7 @@ def train_pose(
 
     offscreen_step_output = []
 
-    loss_layer = torch.nn.MSELoss(reduction='sum').to(
+    loss_layer = torch.nn.MSELoss(reduction="sum").to(
         device=device, dtype=dtype)  # MSELoss()
 
     # make sure camera module is on the correct device
@@ -76,6 +76,13 @@ def train_pose(
 
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
+
+    keypoint_filter = JointFilter(
+        model_type=model_type, filter_dims=3).to(device=device, dtype=dtype)
+
+    # filter keypoints
+    keypoints = keypoint_filter(keypoints)
+
     # get a list of openpose conf values
     # keypoints_conf = torch.tensor(keypoint_conf).to(device=device, dtype=dtype)
 
@@ -120,7 +127,7 @@ def train_pose(
         points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
-        loss = loss_layer(points, keypoints)
+        loss = loss_layer(points, keypoints) * 100
 
         # apply extra losses
         for l in extra_loss_layers:
