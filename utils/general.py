@@ -18,10 +18,10 @@ def getfilename_from_conf(config, index=None):
     name = ""
 
     if index is not None:
-        name = str(index).zfill(3)
-    name = name + "-" + config['pose']['optimizer']
+        name = str(index).zfill(3) + "-"
+    name = name + config['pose']['optimizer']
     name = name + "-lr[" + str(config['pose']['lr']) + "]"
-    name = name + "-it[" + str(config['pose']['iterations'])
+    name = name + "-it[" + str(config['pose']['iterations']) + "]"
     if config['pose']['anglePrior']['enabled']:
         name = name + \
             "-ap[" + str(config['pose']['anglePrior']['weight']) + "]"
@@ -31,11 +31,16 @@ def getfilename_from_conf(config, index=None):
         name = name + \
             "-as[" + str(config['pose']['angleSumLoss']['weight']) + "]"
 
+    if config['pose']['temporal']['enabled']:
+        name = name + "-temporal"
+
+    print(name)
+
     return name
 
 
-def load_config():
-    with open('./config.yaml') as file:
+def load_config(name='./config.yaml'):
+    with open(name) as file:
         # The FullLoader parameter handles the conversion from YAML
         # scalar values to Python the dictionary format
         config = yaml.load(file, Loader=yaml.FullLoader)
