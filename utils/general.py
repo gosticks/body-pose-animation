@@ -39,7 +39,14 @@ def getfilename_from_conf(config, index=None):
     return name
 
 
-def load_config(name='./config.yaml'):
+def load_config(name=None):
+    if name is None:
+        config_name_env = os.getenv('CONFIG_PATH')
+        if config_name_env is not None:
+            name = config_name_env
+        else:
+            name = './config.yaml'
+
     with open(name) as file:
         # The FullLoader parameter handles the conversion from YAML
         # scalar values to Python the dictionary format

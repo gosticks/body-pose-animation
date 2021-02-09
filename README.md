@@ -66,6 +66,14 @@ The project provides sample examples to the usage of the project. These examples
 
 The input is expected to be OpenPose keypoints and output images (required for previews). These files should be placed to the samples folder the foldername and the name format of the samples can be configured within the `config.yaml`.
 
+### Selecting config file
+
+By default the config is expected at `./config.yaml` this can be changed to any value by setting the `CONFIG_PATH` environment variable.
+
+```bash
+CONFIG_PATH=/path/to/myconfig.yaml python example_fit.py
+```
+
 ## Links
 
 [OpenPose](https://github.com/CMU-Perceptual-Computing-Lab/openpose)
