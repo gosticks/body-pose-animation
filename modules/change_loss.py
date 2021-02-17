@@ -22,7 +22,7 @@ class ChangeLoss(nn.Module):
             compare_pose.to(device=device, dtype=dtype)
         )
 
-        self.loss = nn.MSELoss(reduce="sum").to(
+        self.loss = nn.MSELoss(reduction="sum").to(
             device=device, dtype=dtype)
 
         self.register_buffer(
