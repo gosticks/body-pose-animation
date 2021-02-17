@@ -33,7 +33,7 @@ class BodyPose(nn.Module):
             pose_in = pose_in + pose_extra
 
         bode_output = self.model(
-            return_full_pose=True,
+            return_full_pose=False,
             body_pose=pose_in
         )
 

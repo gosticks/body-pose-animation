@@ -65,6 +65,15 @@ class IntrinsicsCamera(nn.Module):
 
 
 class SimpleCamera(nn.Module):
+    def dummy_camera(device=None, dtype=None):
+        cam_trans = torch.tensor(np.eye(4)).to(device=device, dtype=dtype)
+        cam_layer = TransformCamera(
+            transform_mat=cam_trans,
+            device=device,
+            dtype=dtype,
+        )
+        return cam_layer, cam_trans
+
     def from_estimation_cam(cam: TorchCameraEstimate, use_intrinsics=False, device=None, dtype=None):
         """utility to create camera module from estimation camera
 

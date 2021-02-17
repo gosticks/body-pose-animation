@@ -75,7 +75,7 @@ def train_pose(
     pose_layer = BodyPose(model, dtype=dtype, device=device,
                           useBodyMeanAngles=False).to(device=device, dtype=dtype)
 
-    parameters = [pose_layer.body_pose]
+    parameters = [model.global_orient, pose_layer.body_pose]
 
     # setup all loss layers
     for l in extra_loss_layers:
@@ -210,6 +210,9 @@ def train_pose_with_conf(
         dtype=dtype,
         device=device,
     )
+
+    # pose_camera, cam_trans = SimpleCamera.dummy_camera(
+    #     device=device, dtype=dtype)
 
     # apply transform to scene
     if renderer is not None:

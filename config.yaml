@@ -38,7 +38,7 @@ pose:
     weight: 0.1
   angleSumLoss:
     enabled: true
-    weight: 0.1
+    weight: 0.01
   intersectLoss:
     enabled: true
     weight: 2.0
@@ -52,8 +52,8 @@ pose:
   vposerPath: "./vposer_v1_0"
   temporal:
     enabled: true
-    iterations: 50
-    lr: 0.01
+    iterations: 75
+    lr: 0.02
 preview:
   enable: true,
   keypoins:
