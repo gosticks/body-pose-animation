@@ -21,6 +21,6 @@ class AngleSumLoss(nn.Module):
             torch.tensor(weight).to(device=device, dtype=dtype)
         )
 
-    def forward(self, pose, joints, points, keypoints):
+    def forward(self, pose, joints, points, keypoints, raw_output):
         # get relevant angles
         return pose.pow(2).sum() * self.weight

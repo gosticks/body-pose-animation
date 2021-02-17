@@ -27,7 +27,7 @@ class BodyPrior(nn.Module):
             torch.tensor(weight, dtype=dtype).to(device=device)
         )
 
-    def forward(self, pose, joints, points, keypoints):
+    def forward(self, pose, joints, points, keypoints, raw_output):
         # get relevant angles
         return self.latent_pose.pow(
             2).sum() * self.weight

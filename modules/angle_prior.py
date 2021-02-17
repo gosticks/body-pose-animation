@@ -40,7 +40,7 @@ class AnglePriorsLoss(nn.Module):
             torch.tensor(global_weight, dtype=dtype).to(device=device)
         )
 
-    def forward(self, pose, joints, points, keypoints):
+    def forward(self, pose, joints, points, keypoints, raw_output):
         # compute direction deviation from expected joint rotation directions,
         # e.g. don't rotate the knee joint forwards. Broken knees are not fun.
 

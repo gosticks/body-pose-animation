@@ -1,3 +1,4 @@
+from modules.intersect import IntersectLoss
 from modules.body_prior import BodyPrior
 from modules.angle_sum import AngleSumLoss
 from camera_estimation import TorchCameraEstimate
@@ -60,7 +61,8 @@ def train_pose(
 
     extra_loss_layers=[],
 
-    use_progress_bar=True
+    use_progress_bar=True,
+    loss_analysis=True
 ):
     if use_progress_bar:
         print("[pose] starting training")
@@ -127,12 +129,15 @@ def train_pose(
         points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
-        loss = loss_layer(points, keypoints) * 100
+        loss = loss_layer(points, keypoints)  # * 100
 
         # apply extra losses
         for l in extra_loss_layers:
-            loss = loss + l(cur_pose, body_joints, points,
-                            keypoints)
+            cur_loss = l(cur_pose, body_joints, points,
+                         keypoints, pose_layer.cur_out)
+            if loss_analysis:
+                print(l.__class__.__name__, ":loss ->", cur_loss)
+            loss = loss + cur_loss
         return loss
 
     def optim_closure():
@@ -190,7 +195,7 @@ def train_pose(
     return best_output, loss_history, offscreen_step_output
 
 
-def get_loss_layers(config, device, dtype):
+def get_loss_layers(config, model: smplx.SMPL, device, dtype):
     """ Utility method to create loss layers based on a config file
 
     Args:
@@ -226,6 +231,16 @@ def get_loss_layers(config, device, dtype):
             device=device,
             dtype=dtype,
             weight=config['pose']['angleLimitLoss']['weight']))
+
+    if config['pose']['intersectLoss']['enabled']:
+        extra_loss_layers.append(IntersectLoss(
+            model=model,
+            device=device,
+            dtype=dtype,
+            weight=config['pose']['intersectLoss']['weight'],
+            sigma=config['pose']['intersectLoss']['sigma'],
+            max_collisions=config['pose']['intersectLoss']['maxCollisions']
+        ))
 
     return extra_loss_layers
 
@@ -263,7 +278,7 @@ def train_pose_with_conf(
     if renderer is not None:
         renderer.set_group_pose("body", cam_trans.cpu().numpy())
 
-    loss_layers = get_loss_layers(config, device, dtype)
+    loss_layers = get_loss_layers(config, model, device, dtype)
 
     if print_loss_layers:
         print(loss_layers)

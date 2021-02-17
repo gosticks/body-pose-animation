@@ -34,7 +34,7 @@ class AngleClipper(nn.Module):
             torch.tensor(weight, dtype=dtype).to(device=device)
         )
 
-    def forward(self, pose, joints, points, keypoints):
+    def forward(self, pose, joints, points, keypoints, raw_output):
 
         angles = pose[:, self.angle_idx]
 
