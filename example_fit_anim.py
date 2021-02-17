@@ -8,8 +8,8 @@ from utils.general import *
 from renderer import *
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 60  # starting index of the frame to optimize for
-FINISH_IDX = 70   # choose a big number to optimize for all frames in samples directory
+START_IDX = 1  # starting index of the frame to optimize for
+FINISH_IDX = 100   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
 RUN_OPTIMIZATION = True
 
@@ -41,7 +41,7 @@ if RUN_OPTIMIZATION:
         verbose=False,
         offscreen=True,
         save_to_file=True,
-        interpolate=True
+        interpolate=False
     )
 
 # TODO: use current body pose and camera transform for next optimization?
@@ -89,5 +89,5 @@ else:
 video_name = getfilename_from_conf(
     config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
 
-#video_from_pkl(anim_file, video_name, config)
-replay_animation(anim_file, interpolated=True)
+video_from_pkl(anim_file, video_name, config)
+# replay_animation(anim_file, interpolated=True)

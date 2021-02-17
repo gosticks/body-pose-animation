@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 from scipy import interpolate
 
+
 def make_video(images, video_name: str, fps=5, ext: str = "mp4"):
     images = np.array(images)
     width = images.shape[2]
@@ -53,6 +54,7 @@ def save_to_video(poses, video_name, config, fps=30, interpolated=False):
 
     make_video(frames, video_name, fps)
 
+
 def interpolate_poses(poses, num_intermediate=5):
     """
     Interpolate vertices and cameras between pairs of frames by adding intermediate results
@@ -79,14 +81,17 @@ def interpolate_poses(poses, num_intermediate=5):
             f1 = interpolate.interp1d(x, poses_pair, axis=0)
             f2 = interpolate.interp1d(x, camera_pair, axis=0)
 
-            evenly_spaced_points = np.linspace(x[0], x[-1], (poses_pair.shape[0] - 1) * (num_intermediate + 1) + 1)
+            evenly_spaced_points = np.linspace(
+                x[0], x[-1], (poses_pair.shape[0] - 1) * (num_intermediate + 1) + 1)
 
             new_frames = f1(evenly_spaced_points)
             new_cameras = f2(evenly_spaced_points)
 
-            arr = [(new_frames[i], new_cameras[i]) for i in range(new_frames.shape[0])]
+            arr = [(new_frames[i], new_cameras[i])
+                   for i in range(new_frames.shape[0])]
             if 0 < i < len(poses) - 1:
-                arr.pop(0)  # remove first frame that was already added in the last interpolation
+                # remove first frame that was already added in the last interpolation
+                arr.pop(0)
             new_poses += arr
 
     return new_poses

@@ -9,6 +9,14 @@ import smplx
 import re
 
 
+def is_loss_enabled(config, name):
+    return config['pose'][name]['enabled']
+
+
+def toggle_loss_enabled(config, name, value):
+    config['pose'][name]['enabled'] = value
+
+
 def get_loss_conf(config, name):
     return config['pose'][name]
 

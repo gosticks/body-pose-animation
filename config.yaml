@@ -1,5 +1,5 @@
 output:
-  rootDir: "./tests/09-02-21"
+  rootDir: "./tests/17-02-21"
   prefix: ""
 smpl:
   modelRootDir: ./models
@@ -45,15 +45,15 @@ pose:
     maxCollisions: 8
     sigma: 0.5
   changeLoss:
-    enabled: false
-    weight: 0.2
+    enabled: true
+    weight: 2.0
   confWeights:
     enabled: false
   vposerPath: "./vposer_v1_0"
   temporal:
-    enabled: false
-    iterations: 5
-    lr: 0.1
+    enabled: true
+    iterations: 50
+    lr: 0.01
 preview:
   enable: true,
   keypoins:

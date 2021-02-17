@@ -1,4 +1,5 @@
 # library imports
+from modules.utils import is_loss_enabled, toggle_loss_enabled
 import os
 import pickle
 import torch
@@ -39,6 +40,13 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         # render camera to the scene
         camera.setup_visualization(r.init_keypoints, r.keypoints)
 
+    # change loss requires for at least one pass to have completed
+    # we disabled this loss if enabled at all for the first pass
+    change_loss_disabled = False
+    if is_loss_enabled(config, 'changeLoss') and initial_pose is None:
+        change_loss_disabled = True
+        toggle_loss_enabled(config, 'changeLoss', False)
+
     # train for pose
     best_out, cam_trans, loss_history, step_imgs, loss_components = train_pose_with_conf(
         config=config,
@@ -51,6 +59,10 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         use_progress_bar=verbose,
         render_steps=(offscreen or interactive)
     )
+
+    # make sure change loss is enabled for the next sample
+    if change_loss_disabled:
+        toggle_loss_enabled(config, 'changeLoss', True)
 
     # if display_result and interactive:
     #     r.wait_for_close()
@@ -73,7 +85,7 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, offscreen=False
             config['pose']['lr'] = config['pose']['temporal']['lr']
             config['pose']['iterations'] = config['pose']['temporal']['iterations']
 
-        best_out, cam_trans, train_loss, step_imgs = optimize_sample(
+        best_out, cam_trans, train_loss, step_imgs, loss_components = optimize_sample(
             idx,
             dataset,
             config,
