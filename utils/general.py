@@ -34,9 +34,13 @@ def getfilename_from_conf(config, index=None):
     if config['pose']['temporal']['enabled']:
         name = name + "-temporal"
 
-    print(name)
-
     return name
+
+
+def get_output_path_from_conf(config, index=None):
+    name = getfilename_from_conf(config, index=index)
+
+    return os.path.join(config['output']['rootDir'], name)
 
 
 def load_config(name=None):

@@ -42,6 +42,7 @@ def train_pose(
     extra_loss_layers=[],
 
     use_progress_bar=True,
+    use_openpose_conf_loss=True,
     loss_analysis=True
 ):
     if use_progress_bar:
@@ -50,12 +51,19 @@ def train_pose(
 
     offscreen_step_output = []
 
-    loss_layer = WeightedMSELoss(
-        weights=keypoint_conf,
-        device=device,
-        dtype=dtype
-    )  # torch.nn.MSELoss(reduction="sum").to(
-    # device=device, dtype=dtype)  # MSELoss()
+    # is enabled will use openpose keypoint confidence
+    # as weights on the loss components
+    if use_openpose_conf_loss:
+        loss_layer = WeightedMSELoss(
+            weights=keypoint_conf,
+            device=device,
+            dtype=dtype
+        )
+    else:
+        loss_layer = torch.nn.MSELoss(reduction="sum").to(
+            device=device,
+            dtype=dtype
+        )
 
     # make sure camera module is on the correct device
     camera = camera.to(device=device, dtype=dtype)
@@ -68,9 +76,6 @@ def train_pose(
 
     # filter keypoints
     keypoints = keypoint_filter(keypoints)
-
-    # get a list of openpose conf values
-    # keypoints_conf = torch.tensor(keypoint_conf).to(device=device, dtype=dtype)
 
     # create filter layer to ignore unused joints, keypoints during optimization
     filter_layer = JointFilter(
@@ -240,6 +245,7 @@ def train_pose_with_conf(
         iterations=config['pose']['iterations'],
         learning_rate=config['pose']['lr'],
         render_steps=render_steps,
+        use_openpose_conf_loss=config['pose']['useOpenPoseConf'],
         use_progress_bar=use_progress_bar,
         extra_loss_layers=loss_layers
     )
