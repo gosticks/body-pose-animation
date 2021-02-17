@@ -1,3 +1,4 @@
+from modules.distance_loss import WeightedMSELoss
 from modules.utils import get_loss_layers
 from camera_estimation import TorchCameraEstimate
 import smplx
@@ -49,8 +50,12 @@ def train_pose(
 
     offscreen_step_output = []
 
-    loss_layer = torch.nn.MSELoss(reduction="sum").to(
-        device=device, dtype=dtype)  # MSELoss()
+    loss_layer = WeightedMSELoss(
+        weights=keypoint_conf,
+        device=device,
+        dtype=dtype
+    )  # torch.nn.MSELoss(reduction="sum").to(
+    # device=device, dtype=dtype)  # MSELoss()
 
     # make sure camera module is on the correct device
     camera = camera.to(device=device, dtype=dtype)
@@ -120,7 +125,7 @@ def train_pose(
         points = filter_layer(points)
 
         # compute loss between 2D joint projection and OpenPose keypoints
-        loss = loss_layer(points, keypoints)  # * 100
+        loss = loss_layer(points, keypoints)
         if loss_analysis:
             loss_components['points'].append(loss.item())
         # apply extra losses
