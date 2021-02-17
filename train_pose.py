@@ -1,9 +1,5 @@
-from modules.intersect import IntersectLoss
-from modules.body_prior import BodyPrior
-from modules.angle_sum import AngleSumLoss
+from modules.utils import get_loss_layers
 from camera_estimation import TorchCameraEstimate
-from modules.angle_clip import AngleClipper
-from modules.angle_prior import AnglePriorsLoss
 import smplx
 import torch
 from tqdm import tqdm
@@ -12,7 +8,6 @@ import torchgeometry as tgm
 # internal imports
 from modules.pose import BodyPose
 from modules.filter import JointFilter
-from model import VPoserModel
 from modules.camera import SimpleCamera
 from renderer import Renderer
 
@@ -38,26 +33,10 @@ def train_pose(
     learning_rate=1e-3,
     iterations=60,
     patience=10,
-    # configure loss function
-    # useBodyPrior=False,
-    # body_prior_weight=2,
-
-    # useAnglePrior=False,
-    # angle_prior_weight=0.5,
-
-    # use_angle_sum_loss=False,
-    # angle_sum_weight=0.1,
-
-    # body_mean_loss=False,
-    # body_mean_weight=0.01,
-
-    # useConfWeights=False,
 
     # renderer options
     renderer: Renderer = None,
     render_steps=True,
-
-    # vposer=None,
 
     extra_loss_layers=[],
 
@@ -118,8 +97,20 @@ def train_pose(
     if use_progress_bar:
         pbar = tqdm(total=iterations)
 
-    def predict():
+    # store results for optional plotting
+    cur_patience = patience
+    best_loss = None
+    best_output = None
 
+    # setup loss history data gathergin
+    loss_history = []
+    if loss_analysis:
+        loss_components = {"points": []}
+        for l in extra_loss_layers:
+            loss_components[l.__class__.__name__] = []
+
+    # prediction and loss computation closere
+    def predict():
         # return joints based on current model state
         body_joints, cur_pose = pose_layer()
 
@@ -130,16 +121,18 @@ def train_pose(
 
         # compute loss between 2D joint projection and OpenPose keypoints
         loss = loss_layer(points, keypoints)  # * 100
-
+        if loss_analysis:
+            loss_components['points'].append(loss.item())
         # apply extra losses
         for l in extra_loss_layers:
             cur_loss = l(cur_pose, body_joints, points,
                          keypoints, pose_layer.cur_out)
             if loss_analysis:
-                print(l.__class__.__name__, ":loss ->", cur_loss)
+                loss_components[l.__class__.__name__].append(cur_loss.item())
             loss = loss + cur_loss
         return loss
 
+    # main optimizer closure
     def optim_closure():
         if torch.is_grad_enabled():
             optimizer.zero_grad()
@@ -150,13 +143,7 @@ def train_pose(
             loss.backward()
         return loss
 
-    # store results for optional plotting
-    cur_patience = patience
-    best_loss = None
-    best_output = None
-
-    loss_history = []
-
+    # main optimization loop
     for t in range(iterations):
         loss = optimizer.step(optim_closure)
 
@@ -192,57 +179,7 @@ def train_pose(
     if use_progress_bar:
         pbar.close()
         print("Final result:", loss.item())
-    return best_output, loss_history, offscreen_step_output
-
-
-def get_loss_layers(config, model: smplx.SMPL, device, dtype):
-    """ Utility method to create loss layers based on a config file
-
-    Args:
-        config ([type]): [description]
-        device ([type]): [description]
-        dtype ([type]): [description]
-    """
-    extra_loss_layers = []
-
-    if config['pose']['bodyPrior']['enabled']:
-
-        vmodel = VPoserModel.from_conf(config)
-        extra_loss_layers.append(BodyPrior(
-            device=device,
-            dtype=dtype,
-            vmodel=vmodel,
-            weight=config['pose']['bodyPrior']['weight']))
-
-    if config['pose']['anglePrior']['enabled']:
-        extra_loss_layers.append(AnglePriorsLoss(
-            device=device,
-            global_weight=config['pose']['anglePrior']['weight'],
-            dtype=dtype))
-
-    if config['pose']['angleSumLoss']['enabled']:
-        extra_loss_layers.append(AngleSumLoss(
-            device=device,
-            dtype=dtype,
-            weight=config['pose']['angleSumLoss']['weight']))
-
-    if config['pose']['angleLimitLoss']['enabled']:
-        extra_loss_layers.append(AngleClipper(
-            device=device,
-            dtype=dtype,
-            weight=config['pose']['angleLimitLoss']['weight']))
-
-    if config['pose']['intersectLoss']['enabled']:
-        extra_loss_layers.append(IntersectLoss(
-            model=model,
-            device=device,
-            dtype=dtype,
-            weight=config['pose']['intersectLoss']['weight'],
-            sigma=config['pose']['intersectLoss']['sigma'],
-            max_collisions=config['pose']['intersectLoss']['maxCollisions']
-        ))
-
-    return extra_loss_layers
+    return best_output, loss_history, offscreen_step_output, loss_components
 
 
 def train_pose_with_conf(
@@ -283,7 +220,7 @@ def train_pose_with_conf(
     if print_loss_layers:
         print(loss_layers)
 
-    best_output, loss_history, offscreen_step_output = train_pose(
+    best_output, loss_history, offscreen_step_output, loss_components = train_pose(
         model=model.to(dtype=dtype),
         keypoints=keypoints,
         keypoint_conf=keypoint_conf,
@@ -299,4 +236,4 @@ def train_pose_with_conf(
         extra_loss_layers=loss_layers
     )
 
-    return best_output, cam_trans, loss_history, offscreen_step_output
+    return best_output, cam_trans, loss_history, offscreen_step_output, loss_components

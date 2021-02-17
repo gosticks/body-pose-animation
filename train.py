@@ -40,7 +40,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         camera.setup_visualization(r.init_keypoints, r.keypoints)
 
     # train for pose
-    best_out, cam_trans, loss_history, step_imgs = train_pose_with_conf(
+    best_out, cam_trans, loss_history, step_imgs, loss_components = train_pose_with_conf(
         config=config,
         model=model,
         keypoints=keypoints,
@@ -55,7 +55,7 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
     # if display_result and interactive:
     #     r.wait_for_close()
 
-    return best_out, cam_trans, loss_history, step_imgs
+    return best_out, cam_trans, loss_history, step_imgs, loss_components
 
 
 def create_animation(dataset, config, start_idx=0, end_idx=None, offscreen=False, verbose=False, save_to_file=False, interpolate=False):

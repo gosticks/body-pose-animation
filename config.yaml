@@ -22,33 +22,36 @@ pose:
   device: cuda
   lr: 0.01
   optimizer: Adam # currently supported Adam, LBFGS
-  iterations: 100
+  iterations: 150
   useCameraIntrinsics: true
   bodyMeanLoss:
     enabled: false
     weight: 0.1
   bodyPrior:
     enabled: true
-    weight: 0.1
+    weight: 0.01
   anglePrior:
     enabled: true
-    weight: 0.5
+    weight: 0.01
   angleLimitLoss:
     enabled: true
-    weight: 0.01
+    weight: 0.1
   angleSumLoss:
     enabled: true
-    weight: 0.01
+    weight: 0.1
   intersectLoss:
     enabled: true
     weight: 2.0
     maxCollisions: 8
     sigma: 0.5
+  changeLoss:
+    enabled: false
+    weight: 0.2
   confWeights:
     enabled: false
   vposerPath: "./vposer_v1_0"
   temporal:
-    enabled: true
+    enabled: false
     iterations: 5
     lr: 0.1
 preview:
