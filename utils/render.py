@@ -9,59 +9,32 @@ def render_model(
     scene,
     model,
     model_out,
-    color=[0.3, 0.3, 0.3, 0.8],
+    **kwargs
+):
+    return render_model_geometry(
+        scene=scene,
+        faces=model.faces,
+        vertices=model_out.vertices.detach().cpu().numpy().squeeze(),
+        **kwargs
+    )
+
+
+def render_model_geometry(
+    scene,
+    faces,
+    vertices,
+    color=[1.0, 0.3, 0.3, 0.8],
     name=None,
-    replace=False,
     pose=None
 ):
-    vertices = model_out.vertices.detach().cpu().numpy().squeeze()
-
     # set vertex colors, maybe use this to highlight accuracies
     vertex_colors = np.ones([vertices.shape[0], 4]) * color
 
     # triangulate vertex mesh
-    tri_mesh = trimesh.Trimesh(vertices, model.faces,
+    tri_mesh = trimesh.Trimesh(vertices, faces,
                                vertex_colors=vertex_colors)
 
     mesh = pyrender.Mesh.from_trimesh(tri_mesh)
-
-    if name is not None and replace:
-        for node in scene.get_nodes(name=name):
-            scene.remove_node(node)
-
-    return scene.add(mesh, name=name, pose=pose)
-
-
-def render_model_with_tfs(
-    scene,
-    model,
-    model_out,
-    color=[0.3, 0.3, 0.3, 0.8],
-    name=None,
-    replace=False,
-    pose=None,
-    transforms=None,
-    interpolated=False
-):
-
-    if not interpolated:
-        vertices = model_out.vertices.detach().cpu().numpy().squeeze()
-    else:
-        # Interpolated frames are passed as a direct array, instead of SMPLXOutput
-        vertices = model_out
-
-    # set vertex colors, maybe use this to highlight accuracies
-    vertex_colors = np.ones([vertices.shape[0], 4]) * color
-
-    # triangulate vertex mesh
-    tri_mesh = trimesh.Trimesh(vertices, model.faces,
-                               vertex_colors=vertex_colors)
-
-    mesh = pyrender.Mesh.from_trimesh(tri_mesh, poses=transforms)
-
-    if name is not None and replace:
-        for node in scene.get_nodes(name=name):
-            scene.remove_node(node)
 
     return scene.add(mesh, name=name, pose=pose)
 

@@ -153,6 +153,9 @@ def train_pose(
             loss.backward()
         return loss
 
+    # camera translation
+    R = camera.trans.detach().cpu().numpy().squeeze()
+
     # main optimization loop
     for t in range(iterations):
         loss = optimizer.step(optim_closure)
@@ -178,13 +181,13 @@ def train_pose(
             pbar.update(1)
 
         if renderer is not None and render_steps:
-            R = camera.trans.detach().cpu().numpy().squeeze()
-            renderer.render_model_with_tfs(
-                model, pose_layer.cur_out, keep_pose=True, transforms=R)
-
+            renderer.render_model(
+                model=model,
+                model_out=pose_layer.cur_out,
+                transform=R
+            )
             if renderer.use_offscreen:
                 offscreen_step_output.append(renderer.get_snapshot())
-            # renderer.set_group_pose("body", R)
 
     if use_progress_bar:
         pbar.close()

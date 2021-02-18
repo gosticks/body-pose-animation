@@ -1,4 +1,5 @@
 import pickle
+from typing import Tuple
 from model import SMPLyModel
 from renderer import DefaultRenderer
 import cv2
@@ -21,14 +22,13 @@ def make_video(images, video_name: str, fps=5, ext: str = "mp4"):
     video = cv2.VideoWriter(
         video_name, fourcc, fps, (width, height), True)
 
-    print("creating video with size", width, height)
-
     for idx in tqdm(range(len(images))):
         img = images[idx]
         im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         video.write(im_rgb)
 
     video.release()
+    print("video saved to:", video_name)
 
 
 def video_from_pkl(filename, video_name, config, ext: str = "mp4"):
@@ -37,7 +37,17 @@ def video_from_pkl(filename, video_name, config, ext: str = "mp4"):
     save_to_video(model_outs, video_name, config)
 
 
-def save_to_video(poses, video_name, config, fps=30, interpolated=False):
+def save_to_video(sample_output: Tuple, video_name: str, config: object, fps=30, interpolation_target=None):
+    """
+    Renders a video from pose, camera tuples. Additionally interpolation can be used to smooth out the animation
+
+    Args:
+        sample_output (Tuple): A tuple of body pose vertices and a camera transformation
+        video_name (str): name for the resulting video file (can also be a path)
+        config (object): general run config
+        fps (int, optional): animation base fps. Defaults to 30.
+        interpolation_target (int, optional): expand animation fps via interpolation to this target. Defaults to 60.
+    """
     r = DefaultRenderer(
         offscreen=True
     )
@@ -45,14 +55,32 @@ def save_to_video(poses, video_name, config, fps=30, interpolated=False):
 
     model_anim = SMPLyModel.model_from_conf(config)
 
-    frames = []
+    if interpolation_target is not None:
+        if interpolation_target % fps != 0:
+            print("[error] interpolation target must be a multiple of fps")
+            return
+        num_intermediate = int(interpolation_target / fps) - 1
+        sample_output = interpolate_poses(sample_output, num_intermediate)
 
-    for body_pose, cam_trans in tqdm(poses):
-        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
-                                render_joints=False, transforms=cam_trans, interpolated=interpolated)
+    frames = []
+    print("[export] rendering animation frames...")
+
+    # just use the first transform
+    cam_transform = sample_output[0][1]
+
+    for vertices, cam_trans in tqdm(sample_output):
+        r.render_model_geometry(
+            faces=model_anim.faces,
+            vertices=vertices,
+            pose=cam_transform,
+        )
         frames.append(r.get_snapshot())
 
-    make_video(frames, video_name, fps)
+    target_fps = fps
+    if interpolation_target is not None:
+        target_fps = interpolation_target
+
+    make_video(frames, video_name, target_fps)
 
 
 def interpolate_poses(poses, num_intermediate=5):

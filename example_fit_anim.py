@@ -1,7 +1,6 @@
 import pickle
 import time
 from train import create_animation
-from utils.video import video_from_pkl
 from dataset import SMPLyDataset
 from model import *
 from utils.general import *
@@ -9,7 +8,7 @@ from renderer import *
 from utils.general import rename_files, get_new_filename
 
 START_IDX = 1  # starting index of the frame to optimize for
-FINISH_IDX = 100   # choose a big number to optimize for all frames in samples directory
+FINISH_IDX = 300   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
 RUN_OPTIMIZATION = True
 
@@ -44,8 +43,6 @@ if RUN_OPTIMIZATION:
         interpolate=False
     )
 
-# TODO: use current body pose and camera transform for next optimization?
-
 
 def replay_animation(file, start_frame=0, end_frame=None, with_background=False, fps=30, interpolated=False):
     r = Renderer()
@@ -54,25 +51,23 @@ def replay_animation(file, start_frame=0, end_frame=None, with_background=False,
     model_anim = SMPLyModel.model_from_conf(config)
 
     with open(file, "rb") as fp:
-        model_outs = pickle.load(fp)
+        results = pickle.load(fp)
 
     if end_frame is None:
-        end_frame = len(model_outs)
+        end_frame = len(results)
 
-    for i in range(start_frame, end_frame):
-        body_pose = model_outs[i][0]
-        camera_transform = model_outs[i][1]
+    for model, camera_transform in results[start_frame::]:
+        if interpolated:
+            vertices = model
+        else:
+            vertices = model.vertices
 
-        if with_background:
-            # Changing image is too jerky, because the image has to be removed and added each time
-            pass
-            # img_path = samples_dir + "/" + str(i) + ".png"
-            # if r.get_node("image") is not None:
-            #     r.remove_node("image")
-            # r.render_image_from_path(img_path, name="image", scale=est_scale)
+        r.render_model_geometry(
+            faces=model_anim.faces,
+            vertices=vertices,
+            pose=camera_transform
+        )
 
-        r.render_model_with_tfs(model_anim, body_pose, keep_pose=True,
-                                render_joints=False, transforms=camera_transform, interpolated=interpolated)
         time.sleep(1 / fps)
 
 
@@ -86,8 +81,4 @@ else:
     result_prefix = config['output']['prefix']
     anim_file = results_dir + result_prefix + "0.pkl"
 
-video_name = getfilename_from_conf(
-    config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
-
-video_from_pkl(anim_file, video_name, config)
-# replay_animation(anim_file, interpolated=True)
+replay_animation(anim_file, interpolated=True)

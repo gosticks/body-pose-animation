@@ -3,7 +3,7 @@ import numpy as np
 from pyrender import scene
 from smplx import SMPLLayer
 from smplx.body_models import SMPL
-from utils.render import render_model, render_model_with_tfs, render_points, render_camera, render_image_plane
+from utils.render import render_model, render_model_geometry, render_points, render_camera, render_image_plane
 import pyrender
 
 
@@ -163,63 +163,52 @@ class Renderer:
             self,
             model: SMPLLayer,
             model_out,
-            color=[1.0, 0.3, 0.3, 0.8],
             replace=True,
-            keep_pose=True,
-            render_joints=True
+            transform=None,
+            render_joints=True,
+            **kwargs
+
     ):
         if model_out is None:
             model_out = model()
 
-        if keep_pose:
-            node = self.get_node("body_mesh")
-            # if node is not None:
-            #original_pose = node.pose
+        joints = None
 
         if render_joints:
-            self.render_joints(
-                model_out.joints.detach().cpu().numpy().squeeze())
+            joints = model_out.joints.detach().cpu().numpy().squeeze()
 
-        self.remove_from_group("body", "body_mesh")
+        return self.render_model_geometry(
+            replace=replace,
+            pose=transform,
+            faces=model.faces,
+            joints=joints,
+            vertices=model_out.vertices.detach().cpu().numpy().squeeze(),
+        )
 
-        self.acquire()
-        node = render_model(self.scene, model, model_out,
-                            color, "body_mesh", replace=replace)
-        self.release()
-
-        self.add_to_group("body", node)
-        return node
-
-    def render_model_with_tfs(
+    def render_model_geometry(
             self,
-            model: SMPLLayer,
-            model_out,
-            color=[1.0, 0.3, 0.3, 0.8],
             replace=True,
-            keep_pose=True,
-            render_joints=True,
-            transforms=None,
-            interpolated=False
+            pose=None,
+            name="body_mesh",
+            joints=None,
+            **kwargs
     ):
-        if model_out is None and not interpolated:
-            model_out = model()
-
-        if keep_pose:
-            node = self.get_node("body_mesh")
-            # if node is not None:
-            #original_pose = node.pose
-
-        if not interpolated:
-            self.render_joints(model_out.joints.detach().cpu().numpy().squeeze(), transforms=transforms)
-
-        self.remove_from_group("body", "body_mesh")
 
         self.acquire()
-        node = render_model_with_tfs(self.scene, model, model_out,
-                                     color, "body_mesh", replace=replace, transforms=transforms, interpolated=interpolated)
+
+        if replace:
+            self.remove_from_group("body", name)
+
+        if joints is not None:
+            self.render_joints(joints)
+
+        node = render_model_geometry(scene=self.scene, name=name, **kwargs)
+        self.add_to_group("body", node)
+
+        if pose is not None:
+            self.set_group_pose("body", pose)
         self.release()
 
-        self.add_to_group("body", node)
         return node
 
     def render_image_from_path(self, path: str, name: str = None, scale=1):

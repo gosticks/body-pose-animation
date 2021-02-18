@@ -59,10 +59,12 @@ def get_loss_layers(config, model: smplx.SMPL, device, dtype):
             weight=config['pose']['bodyPrior']['weight']))
 
     if config['pose']['anglePrior']['enabled']:
+        params = get_layer_config(config, "anglePrior")
         extra_loss_layers.append(AnglePriorsLoss(
             device=device,
-            global_weight=config['pose']['anglePrior']['weight'],
-            dtype=dtype))
+            dtype=dtype,
+            **params
+        ))
 
     if config['pose']['angleSumLoss']['enabled']:
         extra_loss_layers.append(AngleSumLoss(

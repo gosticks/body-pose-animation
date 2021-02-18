@@ -22,17 +22,23 @@ pose:
   device: cuda
   lr: 0.01
   optimizer: Adam # currently supported Adam, LBFGS
-  iterations: 150
+  iterations: 100
   useCameraIntrinsics: true
+  useOpenPoseConf: true # use openpose confidence to weight L2 distance loss
   bodyMeanLoss:
     enabled: false
     weight: 0.1
   bodyPrior:
     enabled: true
-    weight: 0.01
+    weight: 0.1
   anglePrior:
     enabled: true
-    weight: 0.01
+    weight: 0.05
+    # optional per joint configurations
+    angleIdx: [56, 53, 12, 9, 37, 40]
+    directions: [-1, 1, -1, -1, -1, -1]
+    # weights per joint
+    weights: [0.8, 0.8, 0.8, 0.8, 0.1, 0.1]
   angleLimitLoss:
     enabled: true
     weight: 0.1
@@ -41,7 +47,7 @@ pose:
     weight: 0.01
   intersectLoss:
     enabled: true
-    weight: 2.0
+    weight: 1.0
     maxCollisions: 8
     sigma: 0.5
   changeLoss:

@@ -6,9 +6,10 @@ import cv2
 import yaml
 import os.path
 import glob
+from datetime import datetime
 
 
-def getfilename_from_conf(config, index=None):
+def getfilename_from_conf(config, index=None, include_date=True):
     """create a filename containing most training props
 
     Args:
@@ -16,6 +17,10 @@ def getfilename_from_conf(config, index=None):
         index ([type]): sample index
     """
     name = ""
+
+    if include_date:
+        now = datetime.now()
+        name += now.strftime("%d-%m-%H-%M")
 
     if index is not None:
         name = str(index).zfill(3) + "-"

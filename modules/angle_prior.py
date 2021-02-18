@@ -9,8 +9,8 @@ class AnglePriorsLoss(nn.Module):
         dtype=torch.float32,
         angle_idx=[56, 53, 12, 9, 37, 40],
         directions=[1, 1, -1, -1, 1, -1],
-        global_weight=1,
-        weights=[0.4, 0.4, 0.3, 0.3, 0.01, 0.01]
+        weight=1,
+        weights=[0.8, 0.8, 0.7, 0.7, 0.3, 0.3]
     ):
         super(AnglePriorsLoss, self).__init__()
 
@@ -37,7 +37,7 @@ class AnglePriorsLoss(nn.Module):
 
         self.register_buffer(
             "global_weight",
-            torch.tensor(global_weight, dtype=dtype).to(device=device)
+            torch.tensor(weight, dtype=dtype).to(device=device)
         )
 
     def forward(self, pose, joints, points, keypoints, raw_output):
