@@ -32,4 +32,5 @@ model_outs, filename = create_animation(
 video_name = getfilename_from_conf(
     config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
 
-save_to_video(model_outs, video_name, config, interpolation_target=120)
+save_to_video(model_outs, video_name, config,
+              dataset=dataset, interpolation_target=120)

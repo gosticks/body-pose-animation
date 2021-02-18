@@ -1,3 +1,4 @@
+from dataset import SMPLyDataset
 import pickle
 from typing import Tuple
 from model import SMPLyModel
@@ -8,7 +9,7 @@ import numpy as np
 from scipy import interpolate
 
 
-def make_video(images, video_name: str, fps=5, ext: str = "mp4"):
+def make_video(images, video_name: str, fps=5, ext: str = "mp4", post_process_frame=None):
     images = np.array(images)
     width = images.shape[2]
     height = images.shape[1]
@@ -25,6 +26,10 @@ def make_video(images, video_name: str, fps=5, ext: str = "mp4"):
     for idx in tqdm(range(len(images))):
         img = images[idx]
         im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        if post_process_frame is not None:
+            img_rgb = post_process_frame(img=im_rgb, idx=idx)
+
         video.write(im_rgb)
 
     video.release()
@@ -37,7 +42,15 @@ def video_from_pkl(filename, video_name, config, ext: str = "mp4"):
     save_to_video(model_outs, video_name, config)
 
 
-def save_to_video(sample_output: Tuple, video_name: str, config: object, fps=30, interpolation_target=None):
+def save_to_video(
+    sample_output: Tuple,
+    video_name: str,
+    config: object,
+    fps=30,
+    include_thumbnail=True,
+    dataset: SMPLyDataset = None,
+    interpolation_target=None
+):
     """
     Renders a video from pose, camera tuples. Additionally interpolation can be used to smooth out the animation
 
@@ -59,7 +72,8 @@ def save_to_video(sample_output: Tuple, video_name: str, config: object, fps=30,
         if interpolation_target % fps != 0:
             print("[error] interpolation target must be a multiple of fps")
             return
-        num_intermediate = int(interpolation_target / fps) - 1
+        inter_ratio = int(interpolation_target / fps)
+        num_intermediate = inter_ratio - 1
         sample_output = interpolate_poses(sample_output, num_intermediate)
 
     frames = []
@@ -80,7 +94,26 @@ def save_to_video(sample_output: Tuple, video_name: str, config: object, fps=30,
     if interpolation_target is not None:
         target_fps = interpolation_target
 
-    make_video(frames, video_name, target_fps)
+    def post_process_frame(img, idx: int):
+        if not include_thumbnail:
+            return img
+        frame_idx = idx
+        if interpolation_target is not None:
+            # account for possible interpolation
+            frame_idx = int(idx / inter_ratio)
+        overlay = cv2.imread(dataset.get_image_path(frame_idx))
+        print("shape 1:", overlay.shape)
+        overlay = cv2.resize(
+            overlay,
+            dsize=(
+                int(overlay.shape[1] * 0.25), int(overlay.shape[0] * 0.25)
+            ))
+        print("shape 2:", overlay.shape)
+        img[0:overlay.shape[0], 0:overlay.shape[1]] = overlay
+        return img
+
+    make_video(frames, video_name, target_fps,
+               post_process_frame=post_process_frame)
 
 
 def interpolate_poses(poses, num_intermediate=5):
