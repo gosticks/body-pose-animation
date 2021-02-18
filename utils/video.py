@@ -102,13 +102,11 @@ def save_to_video(
             # account for possible interpolation
             frame_idx = int(idx / inter_ratio)
         overlay = cv2.imread(dataset.get_image_path(frame_idx))
-        print("shape 1:", overlay.shape)
         overlay = cv2.resize(
             overlay,
             dsize=(
                 int(overlay.shape[1] * 0.25), int(overlay.shape[0] * 0.25)
             ))
-        print("shape 2:", overlay.shape)
         img[0:overlay.shape[0], 0:overlay.shape[1]] = overlay
         return img
 
