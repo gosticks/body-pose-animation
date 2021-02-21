@@ -9,7 +9,7 @@ import numpy as np
 from scipy import interpolate
 
 
-def make_video(images, video_name: str, fps=5, ext: str = "mp4", post_process_frame=None):
+def make_video(images, video_name: str, fps=30, ext: str = "mp4", post_process_frame=None):
     images = np.array(images)
     width = images.shape[2]
     height = images.shape[1]
@@ -48,6 +48,7 @@ def save_to_video(
     config: object,
     fps=30,
     include_thumbnail=True,
+    thumbnail_size=0.25,
     dataset: SMPLyDataset = None,
     interpolation_target=None
 ):
@@ -101,11 +102,18 @@ def save_to_video(
         if interpolation_target is not None:
             # account for possible interpolation
             frame_idx = int(idx / inter_ratio)
-        overlay = cv2.imread(dataset.get_image_path(frame_idx))
+        img_path = dataset.get_image_path(frame_idx)
+        overlay = cv2.imread(img_path)
+
+        if overlay is None:
+            print("[error] image could not be ", img_path)
+            return img
+
         overlay = cv2.resize(
             overlay,
             dsize=(
-                int(overlay.shape[1] * 0.25), int(overlay.shape[0] * 0.25)
+                int(overlay.shape[1] * thumbnail_size),
+                int(overlay.shape[0] * thumbnail_size)
             ))
         img[0:overlay.shape[0], 0:overlay.shape[1]] = overlay
         return img
