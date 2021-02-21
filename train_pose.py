@@ -85,7 +85,8 @@ def train_pose(
     pose_layer = BodyPose(model, dtype=dtype, device=device,
                           useBodyMeanAngles=False).to(device=device, dtype=dtype)
 
-    parameters = [model.global_orient, pose_layer.body_pose]
+    # [model.global_orient, pose_layer.body_pose]
+    parameters = [pose_layer.body_pose]  # list(model.parameters())
 
     # setup all loss layers
     for l in extra_loss_layers:
