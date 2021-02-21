@@ -2,7 +2,7 @@ import pickle
 import time
 from train import create_animation
 from tqdm import tqdm
-from utils.video import make_video, video_from_pkl
+from utils.video import make_video, save_to_video, video_from_pkl
 import torch
 import itertools
 import numpy as np
@@ -13,7 +13,7 @@ from renderer import *
 from utils.general import rename_files, get_new_filename
 
 START_IDX = 00  # starting index of the frame to optimize for
-FINISH_IDX = 50   # choose a big number to optimize for all frames in samples
+FINISH_IDX = 20   # choose a big number to optimize for all frames in samples
 
 device = torch.device('cpu')
 dtype = torch.float32
@@ -24,21 +24,33 @@ model = SMPLyModel.model_from_conf(config)
 
 
 def run_test(config):
-    _, filename = create_animation(
+    model_outs, filename = create_animation(
         dataset,
         config,
         START_IDX,
         FINISH_IDX,
         verbose=False,
         offscreen=False,
-        save_to_file=True
+        save_to_file=False,
+        interpolate=False
     )
     video_name = getfilename_from_conf(
         config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
 
     video_name = os.path.join(config['output']['rootDir'], video_name)
 
-    video_from_pkl(filename, video_name, config)
+    video_name = getfilename_from_conf(
+        config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
+
+    video_name = os.path.join(
+        config['output']['rootDir'],
+        video_name
+    )
+
+    save_to_video(
+        model_outs, video_name, config,
+        dataset=dataset, interpolation_target=60
+    )
 
 
 def run_pose_tests(config):
