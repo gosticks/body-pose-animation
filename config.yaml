@@ -9,15 +9,20 @@ smpl:
   useVposerInit: false
 data:
   renameFiles: false
-  rootDir: ./output
+  rootDir: ./samples/video02
   personId: 0
-  sampleImageFormat: "input_%%%%%%%%%%%%_rendered.png"
-  sampleNameFormat: "input_%%%%%%%%%%%%_keypoints.json"
+  sampleImageFormat: "frame-%%%.png"
+  sampleNameFormat: "input2_%%%%%%%%%%%%_keypoints.json"
   sampleCoords: !!python/tuple [1080, 1080]
 camera:
   lr: 0.001
   patience: 10
   optimizer: Adam
+orientation:
+  lr: 0.01
+  optimizer: Adam
+  iterations: 100
+  joint_names: ["hip-left", "hip-right", "shoulder-left", "shoulder-right"] # joints to be used for optimization
 pose:
   device: cuda
   lr: 0.01
@@ -33,32 +38,32 @@ pose:
     weight: 0.01
   anglePrior:
     enabled: true
-    weight: 0.1
+    weight: 0.2
     # optional per joint configurations
     angleIdx: [56, 53, 12, 9, 37, 40]
-    directions: [-1, 1, -1, -1, 1, 1]
+    directions: [-1, 1, -1, -1, 1, -1]
     # weights per joint
-    weights: [0.8, 0.8, 0.8, 0.8, 0.5, 0.5]
+    weights: [0.4, 0.4, 0.4, 0.4, 0.2, 0.2]
   angleLimitLoss:
     enabled: true
-    weight: 0.5
+    weight: 0.01
   angleSumLoss:
-    enabled: false
+    enabled: true
     weight: 0.01
   intersectLoss:
     enabled: true
-    weight: 1.0
+    weight: 0.5
     maxCollisions: 8
     sigma: 0.5
   changeLoss:
     enabled: true
-    weight: 0.5
+    weight: 0.1
   confWeights:
     enabled: false
   vposerPath: "./vposer_v1_0"
   temporal:
     enabled: true
-    iterations: 50
+    iterations: 75
     lr: 0.01
 preview:
   enable: true,
