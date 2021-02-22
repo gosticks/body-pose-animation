@@ -26,9 +26,9 @@ RUN apt-get update && \
 
 #get openpose
 # WORKDIR /openpose
-# RUN git clone https://github.com/CMU-Perceptual-Computing-Lab/openpose.git .
+RUN git clone https://github.com/CMU-Perceptual-Computing-Lab/openpose.git .
 
 #build it
-# WORKDIR /openpose/build
-# RUN cmake -DBUILD_PYTHON=OFF .. && make -j `nproc`
-# WORKDIR /openpose
+WORKDIR /openpose/build
+RUN cmake -DBUILD_PYTHON=OFF .. && make -j `nproc`
+WORKDIR /openpose

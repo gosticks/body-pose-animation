@@ -238,6 +238,19 @@ def get_named_joint(joints: List, name: str, type="smpl"):
         return joints[joint_names_body_25[name]]
 
 
+def get_indices_by_name(names: List[str], type="smpl"):
+    return [get_index_by_name(name, type=type) for name in names]
+
+
+def get_index_by_name(name: str, type="smpl"):
+    if type == "smpl":
+        mapping = get_mapping_arr()
+        index = joint_names_body_25[name]
+        return np.where(mapping == index)
+    if type == "body_25":
+        return joint_names_body_25[name]
+
+
 def get_named_joints(joints: List, names: List[str], type="smpl"):
     return np.array([get_named_joint(joints, name, type=type) for name in names]).squeeze()
 

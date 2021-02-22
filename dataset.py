@@ -48,9 +48,13 @@ class SMPLyDataset(Dataset):
             model_type=config['smpl']['type'],
             image_format=config['data']['sampleImageFormat'],
             sample_format=config['data']['sampleNameFormat'],
-            # img_format=config['data']['sampleImageFormat'],
             sample_id_pad=config['data']['sampleImageFormat'].count('%')
         )
+
+    def get_image_id(self, index):
+        img_id_pad = self.image_format.count("%")
+
+        return str(index + self.start_index).zfill(img_id_pad)
 
     def get_item_name(self, index):
         if self.sample_id_pad == 0:
@@ -94,7 +98,8 @@ class SMPLyDataset(Dataset):
         return sample_count
 
     def get_image_path(self, index):
-        id = self.get_item_name(index)
+        id = self.get_image_id(index)
         name = self.image_format.replace("%" * len(id), id)
         path = os.path.join(self.root_dir, name)
+
         return path
