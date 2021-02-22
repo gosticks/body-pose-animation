@@ -1,7 +1,12 @@
 # library imports
+from collections import defaultdict
+import numpy as np
+from modules.camera import SimpleCamera
+from train_orient import train_orient_with_conf
 from modules.utils import is_loss_enabled, toggle_loss_enabled
 import os
 import pickle
+import cv2
 import torch
 from tqdm.auto import trange
 
@@ -15,7 +20,7 @@ from camera_estimation import TorchCameraEstimate
 
 def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=True, initial_pose=None):
     # prepare data and SMPL model
-    model = SMPLyModel.model_from_conf(config, initial_pose=initial_pose)
+    model = SMPLyModel.model_from_conf(config)
     init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
         model=model,
         renderer=interactive,
@@ -47,13 +52,49 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         change_loss_disabled = True
         toggle_loss_enabled(config, 'changeLoss', False)
 
+    # configure PyTorch device and format
+    # dtype = torch.float64
+    if 'device' in config['pose'] is not None:
+        device = torch.device(config['pose']['device'])
+    else:
+        device = torch.device('cpu')
+
+    # get camera estimation
+    pose_camera, cam_trans, cam_int, cam_params = SimpleCamera.from_estimation_cam(
+        cam=camera,
+        use_intrinsics=config['pose']['useCameraIntrinsics'],
+        dtype=dtype,
+        device=device,
+    )
+
+    params = defaultdict(
+        body_pose=initial_pose,
+    )
+
+    model(**params)
+
+    # apply transform to scene
+    if r is not None:
+        r.set_group_pose("body", cam_trans.cpu().numpy())
+
+    global_orient = train_orient_with_conf(
+        config=config,
+        model=model,
+        keypoints=keypoints,
+        camera_layer=pose_camera,
+        renderer=r,
+        device=device,
+        use_progress_bar=verbose,
+        render_steps=(offscreen or interactive)
+    )
+
     # train for pose
-    best_out, cam_trans, loss_history, step_imgs, loss_components = train_pose_with_conf(
+    best_out, loss_history, step_imgs, loss_components = train_pose_with_conf(
         config=config,
         model=model,
         keypoints=keypoints,
         keypoint_conf=conf,
-        camera=camera,
+        pose_camera=pose_camera,
         renderer=r,
         device=device,
         use_progress_bar=verbose,
