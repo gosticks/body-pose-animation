@@ -8,7 +8,7 @@ from renderer import *
 from utils.general import rename_files, get_new_filename
 
 START_IDX = 1  # starting index of the frame to optimize for
-FINISH_IDX = 200   # choose a big number to optimize for all frames in samples directory
+FINISH_IDX = 60   # choose a big number to optimize for all frames in samples directory
 # if False, only run already saved animation without optimization
 RUN_OPTIMIZATION = True
 

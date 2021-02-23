@@ -176,4 +176,4 @@ def train_orient_with_conf(
         use_progress_bar=use_progress_bar,
     )
 
-    return best_output.global_orient
+    return best_output.global_orient.detach().clone().cpu()

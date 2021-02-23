@@ -18,12 +18,12 @@ from utils.video import interpolate_poses
 from camera_estimation import TorchCameraEstimate
 
 
-def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=True, initial_pose=None):
+def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), dtype=torch.float32, interactive=True, offscreen=False, verbose=True, initial_pose=None, initial_orient=None):
     # prepare data and SMPL model
     model = SMPLyModel.model_from_conf(config)
     init_keypoints, init_joints, keypoints, conf, est_scale, r, img_path = setup_training(
         model=model,
-        renderer=interactive,
+        renderer=(interactive or offscreen),
         dataset=dataset,
         sample_index=sample_index,
         offscreen=offscreen
@@ -69,9 +69,10 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
 
     params = defaultdict(
         body_pose=initial_pose,
+        global_orient=initial_orient
     )
-
-    model(**params)
+    with torch.no_grad():
+        model(**params)
 
     # apply transform to scene
     if r is not None:
@@ -87,6 +88,11 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         use_progress_bar=verbose,
         render_steps=(offscreen or interactive)
     )
+
+    # FIXME: there seems to some form of projection issue and hence the orientation is missestimating the angle
+    # with torch.no_grad():
+    # .to(device=device, dtype=dtype)
+    #    model.global_orient[0][1] = -model.global_orient[0][1]
 
     # train for pose
     best_out, loss_history, step_imgs, loss_components = train_pose_with_conf(
@@ -118,6 +124,7 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, offscreen=False
         end_idx = len(dataset) - 1
 
     initial_pose = None
+    initial_orient = None
 
     for idx in trange(end_idx - start_idx, desc='Optimizing'):
         idx = start_idx + idx
@@ -133,8 +140,8 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, offscreen=False
             verbose=verbose,
             offscreen=offscreen,
             interactive=verbose,
-            initial_pose=initial_pose
-        )
+            initial_pose=initial_pose,
+            initial_orient=initial_orient)
 
         if verbose:
             print("Optimization of", idx, "frames finished")
@@ -152,6 +159,7 @@ def create_animation(dataset, config, start_idx=0, end_idx=None, offscreen=False
 
         if use_temporal_data:
             initial_pose = best_out.body_pose.detach().clone().cpu()  # .to(device=device)
+            initial_orient = best_out.global_orient.detach().clone().cpu()
 
     if interpolate:
         model_outs = interpolate_poses(model_outs)

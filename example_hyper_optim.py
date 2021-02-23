@@ -12,8 +12,8 @@ from utils.general import *
 from renderer import *
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 00  # starting index of the frame to optimize for
-FINISH_IDX = 20   # choose a big number to optimize for all frames in samples
+START_IDX = 140  # starting index of the frame to optimize for
+FINISH_IDX = 300   # choose a big number to optimize for all frames in samples
 
 device = torch.device('cpu')
 dtype = torch.float32
@@ -31,7 +31,7 @@ def run_test(config):
         FINISH_IDX,
         verbose=False,
         offscreen=False,
-        save_to_file=False,
+        save_to_file=True,
         interpolate=False
     )
     video_name = getfilename_from_conf(
@@ -49,24 +49,28 @@ def run_test(config):
 
     save_to_video(
         model_outs, video_name, config,
+        start_frame_offset=START_IDX,
         dataset=dataset, interpolation_target=60
     )
 
 
 def run_pose_tests(config):
-    priors_types = ['bodyPrior', 'anglePrior', 'angleSumLoss', 'temporal']
+    priors_types = ['bodyPrior', 'anglePrior',
+                    'angleSumLoss', 'temporal', 'intersectLoss', 'changeLoss']
     l = [False, True]
     permutations = [list(i)
                     for i in itertools.product(l, repeat=len(priors_types))]
 
-    lr_steps = [0.01, 0.02, 0.03, 0.04, 0.05,
-                0.07, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5]
+    lr_steps = [0.01]
+    total_runs = len(permutations) * len(lr_steps)
+    run_num = 1
     for lr in lr_steps:
         print("running test with lr:", lr)
         config['pose']['lr'] = lr
 
         for p in permutations:
-            print("running test:", config['pose']['optimizer'])
+            print("running test ", "(" + str(run_num) + "/" + str(total_runs) + "):",
+                  config['pose']['optimizer'])
             # iterate over all permutations and update config
             for i, v in enumerate(p):
                 config['pose'][priors_types[i]]['enabled'] = v
@@ -79,7 +83,7 @@ print("training: Adam")
 # run tests for adam
 run_pose_tests(config)
 
-print("training: LBFGS")
+# print("training: LBFGS")
 # try the same with lbfgs
-config = load_config("./config.lbfgs.temporal.yaml")
-run_pose_tests(config)
+# config = load_config("./config.lbfgs.temporal.yaml")
+# run_pose_tests(config)

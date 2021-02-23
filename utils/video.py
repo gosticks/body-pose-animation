@@ -48,7 +48,8 @@ def save_to_video(
     config: object,
     fps=30,
     include_thumbnail=True,
-    thumbnail_size=0.25,
+    thumbnail_size=0.2,
+    start_frame_offset=0,
     dataset: SMPLyDataset = None,
     interpolation_target=None
 ):
@@ -76,9 +77,14 @@ def save_to_video(
         inter_ratio = int(interpolation_target / fps)
         num_intermediate = inter_ratio - 1
         sample_output = interpolate_poses(sample_output, num_intermediate)
-
+    else:
+        sample_output = [
+            (
+                out.vertices.detach().cpu().numpy()[0],
+                cam
+            ) for out, cam in sample_output]
     frames = []
-    print("[export] rendering animation frames...")
+    print("[export] rendering animation frames...", sample_output[0][0].shape)
 
     # just use the first transform
     cam_transform = sample_output[0][1]
@@ -87,7 +93,7 @@ def save_to_video(
         r.render_model_geometry(
             faces=model_anim.faces,
             vertices=vertices,
-            pose=cam_transform,
+            pose=cam_trans  # cam_transform,
         )
         frames.append(r.get_snapshot())
 
@@ -98,6 +104,8 @@ def save_to_video(
     def post_process_frame(img, idx: int):
         if not include_thumbnail:
             return img
+        # account for start from frames not zero
+        idx = start_frame_offset + idx
         frame_idx = idx
         if interpolation_target is not None:
             # account for possible interpolation
@@ -119,6 +127,30 @@ def save_to_video(
         return img
 
     make_video(frames, video_name, target_fps,
+               post_process_frame=post_process_frame)
+
+
+def make_video_with_pip(frames, pip_image_path, video_name: str, fps=30, ext: str = "mp4", image_size=0.2):
+    """renders a video with a pip frame in the corner
+    """
+
+    def post_process_frame(img, idx: int):
+        overlay = cv2.imread(pip_image_path)
+
+        if overlay is None:
+            print("[error] image could not be ", pip_image_path)
+            return img
+
+        overlay = cv2.resize(
+            overlay,
+            dsize=(
+                int(overlay.shape[1] * image_size),
+                int(overlay.shape[0] * image_size)
+            ))
+        img[0:overlay.shape[0], 0:overlay.shape[1]] = overlay
+        return img
+
+    make_video(frames, video_name, fps,
                post_process_frame=post_process_frame)
 
 

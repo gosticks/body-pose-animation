@@ -8,8 +8,8 @@ from utils.general import *
 from renderer import *
 from utils.general import rename_files, get_new_filename
 
-START_IDX = 1  # starting index of the frame to optimize for
-FINISH_IDX = None  # choose a big number to optimize for all frames in samples directory
+START_IDX = 150  # starting index of the frame to optimize for
+FINISH_IDX = 300  # choose a big number to optimize for all frames in samples directory
 
 result_image = []
 idx = START_IDX
@@ -24,13 +24,14 @@ model_outs, filename = create_animation(
     START_IDX,
     FINISH_IDX,
     verbose=False,
-    offscreen=True,
+    offscreen=False,
     save_to_file=False,
     interpolate=False
 )
 
-video_name = getfilename_from_conf(
+video_name = get_output_path_from_conf(
     config) + "-" + str(START_IDX) + "-" + str(FINISH_IDX)
 
 save_to_video(model_outs, video_name, config,
-              dataset=dataset, interpolation_target=60)
+              start_frame_offset=START_IDX,
+              dataset=dataset)

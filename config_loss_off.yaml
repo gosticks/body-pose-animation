@@ -1,5 +1,5 @@
 output:
-  rootDir: "./presentation"
+  rootDir: "./tests/final-03"
   prefix: ""
 smpl:
   modelRootDir: ./models
@@ -27,44 +27,44 @@ pose:
   device: cuda
   lr: 0.01
   optimizer: Adam # currently supported Adam, LBFGS
-  iterations: 150
+  iterations: 200
   useCameraIntrinsics: true
-  useOpenPoseConf: true # use openpose confidence to weight L2 distance loss
+  useOpenPoseConf: false # use openpose confidence to weight L2 distance loss
   bodyMeanLoss:
     enabled: false
     weight: 0.1
   bodyPrior:
-    enabled: true
-    weight: 0.1
+    enabled: false
+    weight: 0.01
   anglePrior:
-    enabled: true
-    weight: 0.05
+    enabled: false
+    weight: 0.2
     # optional per joint configurations
     angleIdx: [56, 53, 12, 9, 37, 40]
-    directions: [1, -1, -1, -1, 1, -1]
+    directions: [-1, 1, -1, -1, 1, -1]
     # weights per joint
-    weights: [0.2, 0.2, 0.8, 0.8, 0.0, 0.0]
+    weights: [0.4, 0.4, 0.4, 0.4, 0.2, 0.2]
   angleLimitLoss:
-    enabled: true
+    enabled: false
     weight: 0.01
   angleSumLoss:
-    enabled: true
+    enabled: false
     weight: 0.001
   intersectLoss:
-    enabled: true
+    enabled: false
     weight: 0.5
     maxCollisions: 8
     sigma: 0.5
   changeLoss:
     enabled: true
-    weight: 0.07
+    weight: 0.2
   confWeights:
     enabled: false
   vposerPath: "./vposer_v1_0"
   temporal:
     enabled: true
-    iterations: 50
-    lr: 0.03
+    iterations: 30
+    lr: 0.01
 preview:
   enable: true,
   keypoins:
