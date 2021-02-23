@@ -32,6 +32,10 @@ This should copy and rename the SMPL model to the correct folders. Either way th
 ### VPoser
 To use `bodyPrior` in the configuration please download vposer and plate it into `./vposer_v1_0` directory in the project root. Vposer can be downloaded from this link after creating an account with SMPL-X [link](https://psfiles.is.tuebingen.mpg.de/downloads/smplx/vposer_v1_0-zip)
 
+### Mesh intersection 
+To use `intersectLoss` in the configuration please pull the [github](https://github.com/gosticks/torch-mesh-isect) repo. This repo is patched to run on the newer versions of pytorch. 
+Note: It only runs for Linux based operating systems. We had troubles getting it to work on Windows.
+
 ### Conda Environment
 
 Create a new conda env by typing
@@ -60,7 +64,7 @@ pip freeze > requirements.txt
 
 ## Usage
 
-The project provides sample examples to the usage of the project. These examples can be directly run after installing all required packages. Per default the input data is expected to be located in the `./samples/` folder.
+The project provides sample examples to the usage of the project. These examples can be directly run after installing all required packages. Per default the input data is expected to be located in the `./samples/` folder. We would recommend you to get all the frames from the source video in png format and pass the video through OpenPose to get the results exported in .json format if you want to try your own samples.
 
 ### Input data
 
