@@ -101,4 +101,6 @@ vposer_v1_0
 results/
 output/
 tests/
-samples/video*
+samples/
+raw/
+presentation/

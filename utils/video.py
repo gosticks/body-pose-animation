@@ -93,7 +93,7 @@ def save_to_video(
         r.render_model_geometry(
             faces=model_anim.faces,
             vertices=vertices,
-            pose=cam_trans  # cam_transform,
+            pose=cam_transform  # cam_transform,
         )
         frames.append(r.get_snapshot())
 

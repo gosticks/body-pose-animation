@@ -33,7 +33,7 @@ This should copy and rename the SMPL model to the correct folders. Either way th
 To use `bodyPrior` in the configuration please download vposer and plate it into `./vposer_v1_0` directory in the project root. Vposer can be downloaded from this link after creating an account with SMPL-X [link](https://psfiles.is.tuebingen.mpg.de/downloads/smplx/vposer_v1_0-zip)
 
 ### Mesh intersection 
-To use `intersectLoss` in the configuration please pull the [github](https://github.com/gosticks/torch-mesh-isect) repo. This repo is patched to run on the newer versions of pytorch. 
+To use `intersectLoss` in the configuration please pull the [github](https://github.com/gosticks/torch-mesh-isect) repo. This repo is patched to run on the newer versions of pytorch.
 Note: It only runs for Linux based operating systems. We had troubles getting it to work on Windows.
 
 ### Conda Environment

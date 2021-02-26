@@ -19,8 +19,8 @@ camera:
   patience: 10
   optimizer: Adam
 orientation:
-  lr: 0.03
-  optimizer: LBFGS
+  lr: 0.5
+  optimizer: Adam
   iterations: 5
   joint_names: ["hip-left", "hip-right", "shoulder-left", "shoulder-right"] # joints to be used for optimization
 pose:

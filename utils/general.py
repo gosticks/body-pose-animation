@@ -106,7 +106,7 @@ def estimate_scale(joints, keypoints, pairs=[
     smpl_height = np.linalg.norm(smpl_dists, axis=0).mean()
     ops_height = np.linalg.norm(ops_dists, axis=0).mean()
 
-    return cam_fy / 1080 * smpl_height / ops_height
+    return smpl_height / ops_height
 
 
 def estimate_focal_length(run_estimation: bool = False):
@@ -192,7 +192,7 @@ def setup_training(model, dataset, sample_index, renderer=True, offscreen=False)
     est_scale = estimate_scale(joints, keypoints)
 
     # apply scaling to keypoints
-    keypoints = keypoints * est_scale
+    keypoints = keypoints  # * est_scale
 
     # integrating Camera Estimation
 

@@ -60,12 +60,12 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
         device = torch.device('cpu')
 
     # get camera estimation
-    pose_camera, cam_trans, cam_int, cam_params = SimpleCamera.from_estimation_cam(
-        cam=camera,
-        use_intrinsics=config['pose']['useCameraIntrinsics'],
-        dtype=dtype,
-        device=device,
-    )
+    # pose_camera, cam_trans, cam_int, cam_params = SimpleCamera.from_estimation_cam(
+    #     cam=camera,
+    #     use_intrinsics=config['pose']['useCameraIntrinsics'],
+    #     dtype=dtype,
+    #     device=device,
+    # )
 
     params = defaultdict(
         body_pose=initial_pose,
@@ -74,15 +74,17 @@ def optimize_sample(sample_index, dataset, config, device=torch.device('cpu'), d
     with torch.no_grad():
         model(**params)
 
+    r.start()
+
     # apply transform to scene
-    if r is not None:
-        r.set_group_pose("body", cam_trans.cpu().numpy())
+    # if r is not None:
+    #r.set_group_pose("body", cam_trans.cpu().numpy())
 
     global_orient = train_orient_with_conf(
         config=config,
         model=model,
         keypoints=keypoints,
-        camera_layer=pose_camera,
+        camera_layer=None,  # pose_camera,
         renderer=r,
         device=device,
         use_progress_bar=verbose,

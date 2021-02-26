@@ -278,18 +278,27 @@ def openpose_to_opengl_coords(
         [type]: [description]
     """
 
-    points = np.array([
-        [
-            x / real_width * 2 - 1,
-            -y / real_height * 2 + 1,
-            0
-        ] for (x, y, z) in input_data])
+    # points = np.array([
+    #     [
+    #         x / real_width * 2 - 1,
+    #         -y / real_height * 2 + 1,
+    #         0
+    #     ] for (x, y, z) in input_data])
 
+    points = np.array(input_data)[:, :3]
+    points[:, 2] = 0
     conf = np.array([
         z for (_, _, z) in input_data
     ])
 
     return (points, conf)
+
+
+def opengl_to_screen_space(points, size):
+    points[:, 0] = (points[:, 0] + 1) / 2 * size[0]
+    points[:, 1] = -((points[:, 1] - 1) / 2 * size[1])
+    points[:, 2] = ((points[:, 2] - 1) / 2 * size[1])
+    return points
 
 
 def smpl_to_openpose(print_mapping: True):

@@ -1,4 +1,5 @@
-from utils.mapping import get_indices_by_name
+from modules.perspective_cam import PerspectiveCamera
+from utils.mapping import get_indices_by_name, opengl_to_screen_space
 from modules.distance_loss import WeightedMSELoss
 from modules.utils import get_loss_layers
 from camera_estimation import TorchCameraEstimate
@@ -52,10 +53,18 @@ def train_orient(
     )
 
     # make sure camera module is on the correct device
-    camera = camera.to(device=device, dtype=dtype)
+    #camera = camera.to(device=device, dtype=dtype)
+    pers_cam = PerspectiveCamera(
+        dtype=dtype, device=device,
+        center=torch.tensor([[1920/2, 1080/2]], dtype=dtype),
+        focal_length_x=850.0,
+        focal_length_y=850.0
+    ).to(device=device)
 
     # setup keypoint data
     keypoints = torch.tensor(keypoints).to(device=device, dtype=dtype)
+    # keypoints = opengl_to_screen_space(keypoints, (1920, 1080))
+    # do some janky conversion back to pixel :(
 
     # torso indices
     torso_indices = get_indices_by_name(joint_names)
@@ -67,7 +76,7 @@ def train_orient(
     pose_layer = BodyPose(model, dtype=dtype, device=device,
                           useBodyMeanAngles=False).to(device=device, dtype=dtype)
 
-    parameters = [model.global_orient]
+    parameters = [model.global_orient, pers_cam.rotation, pers_cam.translation]
 
     if use_progress_bar:
         pbar = tqdm(total=iterations)
@@ -85,19 +94,23 @@ def train_orient(
 
     optimizer = optimizer(parameters, learning_rate)
 
+    print(keypoints[0][0])
+    body_joints, cur_pose = pose_layer()
+    body_joints = opengl_to_screen_space(body_joints.clone(), (1080, 1080))
+    print(body_joints[0][0])
+
     # prediction and loss computation closere
     def predict():
         # return joints based on current model state
         body_joints, cur_pose = pose_layer()
-
+        # body_joints = opengl_to_screen_space(body_joints.clone(), (1920, 1080))
         # compute homogeneous coordinates and project them to 2D space
-        points = tgm.convert_points_to_homogeneous(body_joints)
-        points = camera(points).squeeze()
-
+        #points = tgm.convert_points_to_homogeneous(body_joints)
+        points = pers_cam(body_joints).squeeze()
+        print(points[0][0])
         # compute loss between 2D joint projection and OpenPose keypoints
         loss = loss_layer(points[torso_indices],
-                          keypoints[torso_indices])
-
+                          keypoints[torso_indices][:, :2])
         return loss
 
     # main optimizer closure
@@ -112,10 +125,10 @@ def train_orient(
         return loss
 
     # camera translation
-    R = camera.trans.detach().cpu().numpy().squeeze()
+    #R = camera.trans.detach().cpu().numpy().squeeze()
 
     # main optimization loop
-    for t in range(iterations):
+    for t in range(2000):
         loss = optimizer.step(optim_closure)
 
         # compute loss
@@ -136,12 +149,14 @@ def train_orient(
             pbar.set_description("Error %f" % cur_loss)
             pbar.update(1)
 
-        if renderer is not None and render_steps:
-            renderer.render_model(
-                model=model,
-                model_out=pose_layer.cur_out,
-                transform=R
-            )
+        # if renderer is not None and render_steps:
+            # renderer.render_model(
+            #     model=model,
+            #     model_out=pose_layer.cur_out,
+            #     transform=R
+            # )
+
+    print("translation", pers_cam.translation)
 
     if use_progress_bar:
         pbar.close()

@@ -9,7 +9,7 @@ from renderer import *
 from utils.general import rename_files, get_new_filename
 
 START_IDX = 150  # starting index of the frame to optimize for
-FINISH_IDX = 300  # choose a big number to optimize for all frames in samples directory
+FINISH_IDX = 400  # choose a big number to optimize for all frames in samples directory
 
 result_image = []
 idx = START_IDX
